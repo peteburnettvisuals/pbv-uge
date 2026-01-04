@@ -73,7 +73,7 @@ with st.sidebar:
             st.rerun()
 
 # --- 6. MAIN SCREEN LOGIC ---
-BUCKET_NAME = "your-bucket-name" # Replace with your actual bucket name
+BUCKET_NAME = "uge-repository-cu32" # Replace with your actual bucket name
 
 if st.session_state.phase == "TITLE":
     st.markdown("<h1 style='text-align: center;'>UGE CONSOLE</h1>", unsafe_allow_html=True)
