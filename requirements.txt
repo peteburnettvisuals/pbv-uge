@@ -1,4 +1,5 @@
 streamlit
 google-cloud-storage
 google-auth
+google-generativeai
 lxml
