@@ -34,26 +34,31 @@ def get_image_url(filename, root_xml):
     blob = client.bucket(BUCKET_NAME).blob(path)
     return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
 
-def get_dm_response(prompt, sector_data, meta):
+def get_dm_response(prompt, sector_data, meta, exits_list):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
+    
+    # Format the exits into a string for the AI to see
+    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
     
     sys_instr = f"""
     You are the sarcastic 80s narrator for '{meta['title']}'.
     Mood: {meta['mood']}
-    Current Location: {sector_data['name']}
+    Location: {sector_data['name']}
     Room Description: {sector_data['desc']}
-    
+    Available Move Options: {exit_desc}
+
     RULES:
-    1. Describe results in 2-3 sentences. 
-    2. NEVER mention 'Pages', 'Dice', or 'Turning to a number'. This is a digital console.
-    3. Stay in character: dry, slightly mean, and concise.
+    1. If the player asks what to do, refer them to the 'Available Exits' buttons under the image.
+    2. NEVER invent 'Page numbers' or external gamebook mechanics.
+    3. You can narrate 'poking around', but remind them that real progress happens through the exits.
+    4. Stay in character: dry, slightly mean, and concise.
     """
     response = model.generate_content([sys_instr, prompt])
     
-    # Wrap in HTML for Toby: Bright Green and Bold
-    toby_text = f"<span style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</span>"
-    return toby_text
+    # Wrap in Bright Green HTML for Toby's eyes
+    bright_text = f"<div style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</div>"
+    return bright_text
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
     """Processes 'Swish' movement, Probability checks, and the Chronos Rewind."""
@@ -168,32 +173,24 @@ elif st.session_state.phase == "PLAYING":
     loc_key = f"{cx},{cy}"
     if 'room_visits' not in st.session_state.world_state:
         st.session_state.world_state['room_visits'] = {}
-    
-    # Increment visit count ONLY if we are in narration mode (prevents double-counting on UI reruns)
-    if st.session_state.get("needs_narration"):
-        st.session_state.world_state['room_visits'][loc_key] = st.session_state.world_state['room_visits'].get(loc_key, 0) + 1
 
     if sector is not None:
         revert_node = sector.find("revert_desc")
         display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
         
-        # DEFINE s_info HERE so it's available to everything below
+        # Define s_info and exits so they are globally available in this block
         s_info = {"name": sector.find("name").text, "desc": display_text}
-        visits = st.session_state.world_state['room_visits'].get(loc_key, 1)
+        exits = sector.findall("exit")
+        visits = st.session_state.world_state['room_visits'].get(loc_key, 0)
 
         # --- AUTO-NARRATION TRIGGER ---
         if st.session_state.get("needs_narration"):
-            # Define s_info early so it's not "Undefined"
-            s_info = {"name": sector.find("name").text, "desc": display_text}
-            visits = st.session_state.world_state['room_visits'].get(loc_key, 1)
+            st.session_state.world_state['room_visits'][loc_key] = visits + 1
+            # Pass 'exits' to the DM so it knows the move options
+            intro_prompt = f"I have just entered {s_info['name']}. Visit #{visits+1}. Narrate my arrival."
+            response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
             
-            intro_prompt = f"I have just entered {s_info['name']}. This is my visit number {visits}. Narrate my arrival."
-            response = get_dm_response(intro_prompt, s_info, st.session_state.meta)
-            
-            # We use bold/white text for Toby's eyes!
-            formatted_response = f"**{response}**" 
-            
-            st.session_state.messages.append({"role": "assistant", "content": formatted_response})
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.session_state.needs_narration = False
             st.rerun()
 
@@ -202,10 +199,9 @@ elif st.session_state.phase == "PLAYING":
         with col_l:
             st.header(sector.find("name").text)
             st.image(get_image_url(sector.find("image").text, root))
-            # st.info(display_text) # REMOVED: Description is now in the DM's chat
             
+            # --- MOVEMENT SECTION ---
             st.subheader("Available Exits")
-            exits = sector.findall("exit")
             if exits:
                 cols = st.columns(len(exits))
                 for i, ex in enumerate(exits):
@@ -214,25 +210,22 @@ elif st.session_state.phase == "PLAYING":
                     
                     if req_item is None or req_item in st.session_state.inventory:
                         if cols[i].button(btn_label):
-                            handle_movement(
-                                target_x=ex.get("target_x"),
-                                target_y=ex.get("target_y"),
-                                success_prob=ex.get("success_prob", 100),
-                                fail_text=ex.get("fail_outcome"),
-                                fail_x=ex.get("fail_target_x"),
-                                fail_y=ex.get("fail_target_y")
-                            )
+                            handle_movement(ex.get("target_x"), ex.get("target_y"), ex.get("success_prob", 100), ex.get("fail_outcome"), ex.get("fail_target_x"), ex.get("fail_target_y"))
                     else:
                         cols[i].button(f"🔒 {ex.get('direction').upper()} (Locked)", disabled=True)
-                        st.warning(f"You'll need something to get across the {ex.get('desc')}...")
+                        st.caption(f"Requires: {get_library_info(req_item, root)['name']}")
 
+            # --- INTERACTION HUB ---
             st.write("---")
+            
+            # 1. Gold
             gold_node = sector.find("contains_gold")
             if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
-                if st.button(f"🔍 Search Area"):
+                if st.button(f"🔍 Search {s_info['name']}"):
                     if collect_gold(gold_node.get("amount"), loc_key):
                         st.rerun()
 
+            # 2. Items (Take)
             item_node = sector.find("contains_item")
             if item_node is not None:
                 item_id = item_node.get("ref")
@@ -243,17 +236,29 @@ elif st.session_state.phase == "PLAYING":
                         st.toast(f"Found: {details['name']}")
                         st.rerun()
 
+            # 3. Vending (The Gift Shop)
+            # Checking artifact library for 'vend_method' items in this room
+            vend_node = sector.find("vending_item") # Or if it's in the artifact library
+            # For your Gift Shop XML, a004 has 'cost: 5'. Let's check for it:
+            if s_info['name'].lower() == "the giftshop":
+                details = get_library_info("a004", root)
+                if "a004" not in st.session_state.inventory:
+                    if st.button(f"🛒 Buy {details['name']} (5 Gold)"):
+                        if buy_from_vending("a004", 5):
+                            st.rerun()
+                        else:
+                            st.error("Not enough gold!")
+
         with col_r:
             st.subheader("Dungeon Master")
             for msg in st.session_state.messages:
                 with st.chat_message(msg["role"]):
-                    # Use markdown with HTML enabled for the DM's bright text
                     st.markdown(msg["content"], unsafe_allow_html=True)
             
             if prompt := st.chat_input("What do you do?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                s_info = {"name": sector.find("name").text, "desc": display_text}
-                response = get_dm_response(prompt, s_info, st.session_state.meta)
+                # DM now knows the room options to guide Toby
+                response = get_dm_response(prompt, s_info, st.session_state.meta, exits)
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 st.rerun()
             
