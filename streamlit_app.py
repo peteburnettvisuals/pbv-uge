@@ -1,3 +1,4 @@
+import random
 import streamlit as st
 import xml.etree.ElementTree as ET
 from google.cloud import storage
@@ -47,11 +48,54 @@ def get_dm_response(prompt, sector_data, meta):
     response = model.generate_content([sys_instr, prompt])
     return response.text
 
+def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
+    """Processes 'Swish' movement, Probability checks, and the Chronos Rewind."""
+    if random.randint(1, 100) > int(success_prob):
+        st.error(fail_text)
+        if fail_x is not None:
+            st.session_state.coords = {"x": int(fail_x), "y": int(fail_y)}
+            st.session_state.just_rewound = True 
+    else:
+        st.session_state.coords = {"x": int(target_x), "y": int(target_y)}
+        st.session_state.just_rewound = False
+    st.rerun()
+
+def collect_gold(amount, sector_key):
+    """Adds gold to wallet and marks the location as 'looted'."""
+    if sector_key not in st.session_state.world_state['looted_gold']:
+        st.session_state.gold += int(amount)
+        st.session_state.world_state['looted_gold'].append(sector_key)
+        return True
+    return False
+
+def buy_from_vending(item_id, cost):
+    """Checks wallet and grants an Artifact ID if funds allow."""
+    if st.session_state.gold >= int(cost):
+        st.session_state.gold -= int(cost)
+        st.session_state.inventory.append(item_id)
+        return True
+    return False
+
+def get_library_info(ref_id, root_xml):
+    """Looks up an ID in the library and returns its name/desc."""
+    # We use root_xml passed from the current session
+    entry = root_xml.find(f".//*[@id='{ref_id}']")
+    if entry is not None:
+        return {
+            "name": entry.get("name", "Unknown Item"),
+            "desc": entry.get("desc", "No description available.")
+        }
+    return {"name": "Unknown", "desc": ""}
+
 # --- 3. SESSION STATE ---
 if "phase" not in st.session_state:
     st.session_state.phase = "TITLE"
     st.session_state.coords = {"x": 0, "y": 0}
     st.session_state.messages = []
+    st.session_state.inventory = [] # Added for items
+    st.session_state.gold = 0        # Added for currency
+    st.session_state.just_rewound = False
+    st.session_state.world_state = {"looted_gold": []} # Added for persistence
 
 # --- 4. ENGINE PHASES ---
 
@@ -81,14 +125,27 @@ if st.session_state.phase == "TITLE":
 
 # PHASE: COVER
 elif st.session_state.phase == "COVER":
-    m = st.session_state.meta
-    st.markdown(f"<h1 style='text-align: center;'>{m['title']}</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 2, 1])
+    # ... existing cover display code ...
+    if st.button("START QUEST"):
+        # Instead of going straight to PLAYING, go to PREAMBLE
+        st.session_state.phase = "PREAMBLE"
+        st.rerun()
+
+# --- NEW PHASE: PREAMBLE ---
+elif st.session_state.phase == "PREAMBLE":
+    root = st.session_state.cartridge_root
+    preamble_text = root.find("config/game_preamble").text
+    
+    st.markdown("<h1 style='text-align: center;'>The Story So Far...</h1>", unsafe_allow_html=True)
+    
+    c1, c2, c3 = st.columns([1, 3, 1])
     with c2:
-        st.image(get_image_url(m['cover'], st.session_state.cartridge_root))
-        st.info(m['blurb'])
-        st.caption(f"Genres: {m['genres']}")
-        if st.button("START GAME"):
+        # Style it like a classic 80s intro block
+        st.markdown(f"### {preamble_text}")
+        st.write("---")
+        if st.button("START HERE"):
+            st.session_state.coords = {"x": 0, "y": 0} # Resets position to the Cave
+            st.session_state.just_rewound = False      # Clears any previous death flags
             st.session_state.phase = "PLAYING"
             st.rerun()
 
@@ -97,22 +154,77 @@ elif st.session_state.phase == "PLAYING":
     root = st.session_state.cartridge_root
     cx, cy = st.session_state.coords['x'], st.session_state.coords['y']
     sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
-
-    col_l, col_r = st.columns([1, 1], gap="large")
     
-    with col_l:
-        if sector is not None:
+    # --- TRACK VISITS (For Treguard Hints later) ---
+    loc_key = f"{cx},{cy}"
+    if 'room_visits' not in st.session_state.world_state:
+        st.session_state.world_state['room_visits'] = {}
+    st.session_state.world_state['room_visits'][loc_key] = st.session_state.world_state['room_visits'].get(loc_key, 0) + 1
+
+    if sector is not None:
+        # Determine description (Mirror of Chronos check)
+        revert_node = sector.find("revert_desc")
+        display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
+
+        col_l, col_r = st.columns([1, 1], gap="large")
+        
+        with col_l:
             st.header(sector.find("name").text)
             st.image(get_image_url(sector.find("image").text, root))
-            st.info(sector.find("desc").text)
+            st.info(display_text)
             
-            # Movement
+            # --- MOVEMENT SECTION ---
+            st.subheader("Available Exits")
+            exits = sector.findall("exit")
+            if exits:
+                cols = st.columns(len(exits))
+                for i, ex in enumerate(exits):
+                    req_item = ex.get("requires")
+                    btn_label = f"{ex.get('direction').upper()}: {ex.get('desc')}"
+                    
+                    # Logic: If no requirement, or player HAS the item, allow movement
+                    if req_item is None or req_item in st.session_state.inventory:
+                        if cols[i].button(btn_label):
+                            handle_movement(
+                                target_x=ex.get("target_x"),
+                                target_y=ex.get("target_y"),
+                                success_prob=ex.get("success_prob", 100),
+                                fail_text=ex.get("fail_outcome"),
+                                fail_x=ex.get("fail_target_x"),
+                                fail_y=ex.get("fail_target_y")
+                            )
+                    else:
+                        # Requirement not met: Show a locked button
+                        cols[i].button(f"🔒 {ex.get('direction').upper()} (Locked)", disabled=True)
+                        st.warning(f"You'll need something to get across the {ex.get('desc')}...")
+
+            # --- INTERACTION HUB (Corrected Indentation) ---
             st.write("---")
-            m1, m2, m3 = st.columns(3)
-            if m2.button("▲ N"): st.session_state.coords['y'] += 1; st.rerun()
-            if m1.button("◀ W"): st.session_state.coords['x'] -= 1; st.rerun()
-            if m3.button("▶ E"): st.session_state.coords['x'] += 1; st.rerun()
-            if m2.button("▼ S"): st.session_state.coords['y'] -= 1; st.rerun()
+            
+            # 1. Gold
+            gold_node = sector.find("contains_gold")
+            if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
+                if st.button(f"🔍 Search Area"):
+                    if collect_gold(gold_node.get("amount"), loc_key):
+                        st.rerun()
+
+            # 2. Items
+            item_node = sector.find("contains_item")
+            if item_node is not None:
+                item_id = item_node.get("ref")
+                if item_id not in st.session_state.inventory:
+                    details = get_library_info(item_id, root)
+                    if st.button(f"📦 Take {details['name']}"):
+                        st.session_state.inventory.append(item_id)
+                        st.toast(f"Found: {details['name']}")
+                        st.rerun()
+
+            # 3. Vending (Gift Shop)
+            vend_node = sector.find("vending_item")
+            if vend_node is not None:
+                # Add logic for your buy_from_vending function here if needed
+                pass
+
         
     with col_r:
         st.subheader("Dungeon Master")
@@ -131,10 +243,20 @@ if st.session_state.messages and st.session_state.messages[-1]["role"] == "user"
         st.session_state.messages.append({"role": "assistant", "content": response})
         st.write(response)
 
-# --- SIDEBAR ---
 with st.sidebar:
     if st.session_state.phase != "TITLE":
         if st.button("Quit to Menu"):
             st.session_state.phase = "TITLE"
             st.session_state.messages = []
             st.rerun()
+            
+        st.header("🎒 Adventurer Stats")
+        st.metric("Gold", f"🪙 {st.session_state.gold}")
+        
+        st.subheader("Inventory")
+        if st.session_state.inventory:
+            for item_id in st.session_state.inventory:
+                details = get_library_info(item_id, st.session_state.cartridge_root)
+                st.write(f"- {details['name']}")
+        else:
+            st.write("*Your pockets are empty.*")
