@@ -42,7 +42,7 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
     
     sys_instr = f"""
-    You are the sarcastic 80s narrator for '{meta['title']}'.
+    You are the genial dry-humoured narrator for '{meta['title']}'.
     Mood: {meta['mood']}
     Location: {sector_data['name']}
     Room Description: {sector_data['desc']}
@@ -255,7 +255,7 @@ elif st.session_state.phase == "PLAYING":
                 with st.chat_message(msg["role"]):
                     st.markdown(msg["content"], unsafe_allow_html=True)
             
-            if prompt := st.chat_input("What do you do?"):
+            if prompt := st.chat_input("Ask the DM a question ..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 # DM now knows the room options to guide Toby
                 response = get_dm_response(prompt, s_info, st.session_state.meta, exits)
