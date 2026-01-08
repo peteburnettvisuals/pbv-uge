@@ -61,13 +61,18 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     return bright_text
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
-    """Processes 'Swish' movement, Probability checks, and the Chronos Rewind."""
+    """Processes movement, clears old chat logs, and triggers new narration."""
     if random.randint(1, 100) > int(success_prob):
         st.error(fail_text)
         if fail_x is not None:
+            # On failure/death, we also clear the chat to narrate the "Respawn"
+            st.session_state.messages = [] 
             st.session_state.coords = {"x": int(fail_x), "y": int(fail_y)}
             st.session_state.just_rewound = True 
+            st.session_state.needs_narration = True
     else:
+        # SUCCESSFUL MOVE: Clear the chat history for the new room
+        st.session_state.messages = [] 
         st.session_state.coords = {"x": int(target_x), "y": int(target_y)}
         st.session_state.just_rewound = False
         st.session_state.needs_narration = True
