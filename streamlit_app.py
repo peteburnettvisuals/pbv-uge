@@ -10,12 +10,15 @@ import datetime
 BUCKET_NAME = "uge-repository-cu32" # Based on your screenshot
 st.set_page_config(layout="wide", page_title="UGE Console")
 
-# Retro CSS
+# Updated Retro CSS with a fixed-height chat style
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #00FF41; font-family: 'Courier New', Courier, monospace; }
     [data-testid="stSidebar"] { background-color: #1A1C23; border-right: 1px solid #00FF41; }
     .stButton>button { width: 100%; border: 1px solid #00FF41; background-color: transparent; color: #00FF41; }
+    
+    /* Ensure the chat input stays at the bottom of its column */
+    .stChatInput { position: sticky; bottom: 0; background-color: #0E1117; padding-top: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -35,44 +38,43 @@ def get_image_url(filename, root_xml):
     return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
 
 def get_dm_response(prompt, sector_data, meta, exits_list):
+    # Clean the description to hide secrets from the AI's standard narration
+    raw_desc = sector_data['desc']
+    # Only give the AI the part of the description BEFORE hidden clues
+    clean_desc = raw_desc.split("hidden:")[0].split("clue:")[0].strip()
+    
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    # Format the exits into a string for the AI to see
-    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
+    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc').split('hidden:')[0].strip()}" for e in exits_list])
     
     sys_instr = f"""
-    You are the genial dry-humoured narrator for '{meta['title']}'.
+    You are the sarcastic 80s narrator for '{meta['title']}'.
     Mood: {meta['mood']}
     Location: {sector_data['name']}
-    Room Description: {sector_data['desc']}
+    Clean Room Description: {clean_desc}
     Available Move Options: {exit_desc}
 
     RULES:
-    1. If the player asks what to do, refer them to the 'Available Exits' buttons under the image.
-    2. NEVER invent 'Page numbers' or external gamebook mechanics.
-    3. You can narrate 'poking around', but remind them that real progress happens through the exits.
-    4. Stay in character: dry, slightly mean, and concise.
+    1. If the player asks what to do, refer them to the 'Available Exits' buttons.
+    2. NEVER reveal anything mentioned as 'hidden' or 'clue' unless the player specifically 
+       describes searching that exact area.
+    3. Stay in character: dry, slightly mean, and concise.
     """
     response = model.generate_content([sys_instr, prompt])
-    
-    # Wrap in Bright Green HTML for Toby's eyes
-    bright_text = f"<div style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</div>"
-    return bright_text
+    return f"<div style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</div>"
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
-    """Processes movement, clears old chat logs, and triggers new narration."""
+    # SUCCESS: Clear chat so the DM starts fresh in the new room
+    st.session_state.messages = [] 
+    
     if random.randint(1, 100) > int(success_prob):
         st.error(fail_text)
         if fail_x is not None:
-            # On failure/death, we also clear the chat to narrate the "Respawn"
-            st.session_state.messages = [] 
             st.session_state.coords = {"x": int(fail_x), "y": int(fail_y)}
             st.session_state.just_rewound = True 
             st.session_state.needs_narration = True
     else:
-        # SUCCESSFUL MOVE: Clear the chat history for the new room
-        st.session_state.messages = [] 
         st.session_state.coords = {"x": int(target_x), "y": int(target_y)}
         st.session_state.just_rewound = False
         st.session_state.needs_narration = True
@@ -174,7 +176,6 @@ elif st.session_state.phase == "PLAYING":
     cx, cy = st.session_state.coords['x'], st.session_state.coords['y']
     sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
     
-    # Track visits
     loc_key = f"{cx},{cy}"
     if 'room_visits' not in st.session_state.world_state:
         st.session_state.world_state['room_visits'] = {}
@@ -183,7 +184,6 @@ elif st.session_state.phase == "PLAYING":
         revert_node = sector.find("revert_desc")
         display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
         
-        # Define s_info and exits so they are globally available in this block
         s_info = {"name": sector.find("name").text, "desc": display_text}
         exits = sector.findall("exit")
         visits = st.session_state.world_state['room_visits'].get(loc_key, 0)
@@ -191,7 +191,6 @@ elif st.session_state.phase == "PLAYING":
         # --- AUTO-NARRATION TRIGGER ---
         if st.session_state.get("needs_narration"):
             st.session_state.world_state['room_visits'][loc_key] = visits + 1
-            # Pass 'exits' to the DM so it knows the move options
             intro_prompt = f"I have just entered {s_info['name']}. Visit #{visits+1}. Narrate my arrival."
             response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
             
@@ -205,7 +204,6 @@ elif st.session_state.phase == "PLAYING":
             st.header(sector.find("name").text)
             st.image(get_image_url(sector.find("image").text, root))
             
-            # --- MOVEMENT SECTION ---
             st.subheader("Available Exits")
             if exits:
                 cols = st.columns(len(exits))
@@ -220,17 +218,14 @@ elif st.session_state.phase == "PLAYING":
                         cols[i].button(f"🔒 {ex.get('direction').upper()} (Locked)", disabled=True)
                         st.caption(f"Requires: {get_library_info(req_item, root)['name']}")
 
-            # --- INTERACTION HUB ---
             st.write("---")
-            
-            # 1. Gold
+            # Interaction Hub (Search/Take/Buy)
             gold_node = sector.find("contains_gold")
             if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
                 if st.button(f"🔍 Search {s_info['name']}"):
                     if collect_gold(gold_node.get("amount"), loc_key):
                         st.rerun()
 
-            # 2. Items (Take)
             item_node = sector.find("contains_item")
             if item_node is not None:
                 item_id = item_node.get("ref")
@@ -238,31 +233,23 @@ elif st.session_state.phase == "PLAYING":
                     details = get_library_info(item_id, root)
                     if st.button(f"📦 Take {details['name']}"):
                         st.session_state.inventory.append(item_id)
-                        st.toast(f"Found: {details['name']}")
                         st.rerun()
-
-            # 3. Vending (The Gift Shop)
-            # Checking artifact library for 'vend_method' items in this room
-            vend_node = sector.find("vending_item") # Or if it's in the artifact library
-            # For your Gift Shop XML, a004 has 'cost: 5'. Let's check for it:
-            if s_info['name'].lower() == "the giftshop":
-                details = get_library_info("a004", root)
-                if "a004" not in st.session_state.inventory:
-                    if st.button(f"🛒 Buy {details['name']} (5 Gold)"):
-                        if buy_from_vending("a004", 5):
-                            st.rerun()
-                        else:
-                            st.error("Not enough gold!")
 
         with col_r:
             st.subheader("Dungeon Master")
-            for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"], unsafe_allow_html=True)
             
+            # This creates a scrollable area 500px high
+            # It automatically scrolls to the bottom!
+            chat_container = st.container(height=500)
+            
+            with chat_container:
+                for msg in st.session_state.messages:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"], unsafe_allow_html=True)
+            
+            # The input sits outside/below the scrollable container
             if prompt := st.chat_input("Ask the DM a question ..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                # DM now knows the room options to guide Toby
                 response = get_dm_response(prompt, s_info, st.session_state.meta, exits)
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 st.rerun()
