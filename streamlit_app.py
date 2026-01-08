@@ -39,14 +39,21 @@ def get_dm_response(prompt, sector_data, meta):
     model = genai.GenerativeModel('gemini-2.0-flash')
     
     sys_instr = f"""
-    You are the narrator for '{meta['title']}'.
+    You are the sarcastic 80s narrator for '{meta['title']}'.
     Mood: {meta['mood']}
-    Location: {sector_data['name']}
+    Current Location: {sector_data['name']}
     Room Description: {sector_data['desc']}
-    Action: Describe the results of the player's action in 2-3 sentences. Stay in character.
+    
+    RULES:
+    1. Describe results in 2-3 sentences. 
+    2. NEVER mention 'Pages', 'Dice', or 'Turning to a number'. This is a digital console.
+    3. Stay in character: dry, slightly mean, and concise.
     """
     response = model.generate_content([sys_instr, prompt])
-    return response.text
+    
+    # Wrap in HTML for Toby: Bright Green and Bold
+    toby_text = f"<span style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</span>"
+    return toby_text
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
     """Processes 'Swish' movement, Probability checks, and the Chronos Rewind."""
@@ -238,18 +245,16 @@ elif st.session_state.phase == "PLAYING":
 
         with col_r:
             st.subheader("Dungeon Master")
-            # Display chat history
             for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
+                with st.chat_message(msg["role"]):
+                    # Use markdown with HTML enabled for the DM's bright text
+                    st.markdown(msg["content"], unsafe_allow_html=True)
             
-            # Handle manual player input
             if prompt := st.chat_input("What do you do?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 s_info = {"name": sector.find("name").text, "desc": display_text}
                 response = get_dm_response(prompt, s_info, st.session_state.meta)
-                
-                # Format the DM's reply to be bright
-                st.session_state.messages.append({"role": "assistant", "content": f"**{response}**"})
+                st.session_state.messages.append({"role": "assistant", "content": response})
                 st.rerun()
             
 with st.sidebar:
