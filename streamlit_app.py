@@ -41,20 +41,23 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    # We pass the full data so the AI knows the secrets, but we forbid inventing new ones
+    # We pass the full data so the AI knows exactly what is hidden and where
+    raw_desc = sector_data['desc']
+    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
+    
     sys_instr = f"""
     You are the 'UGE Console' Engine Interface for '{meta['title']}'. 
     
-    ACTUAL DATA FOR THIS ROOM:
+    STRICT CANONICAL DATA FOR THIS ROOM:
     - Name: {sector_data['name']}
-    - Raw XML Data: {sector_data['desc']}
+    - Room Description & Hidden Secrets: {raw_desc}
     
     STRICT OPERATING RULES:
-    1. NEVER invent new items, lockets, or environmental features. If it is not in the 'Raw XML Data', it is a hallucination. 
-    2. Your job is to describe the Part 1 of the XML data.
-    3. If the player searches in a location that arguably matches the location mentioned in the 'hidden:' part of the XML, you MUST respond with: 'You found it! [REVEAL_SECRET]'.
-    4. If they search anywhere else, be dismissive. Tell them they find nothing but dust.
-    5. Stay in character as a genial dungeon master.
+    1. NEVER invent new items (no lockets, no photos, no extra furniture). 
+    2. If the player's description of an action logically matches a 'hidden:' or 'clue:' tag in the Sector Data (e.g., searching behind barrels/boxes), you MUST include the code [REVEAL_SECRET] at the very end of your message.
+    3. If they find gold mentioned in the data, include [GIVE_GOLD].
+    4. Until they trigger a secret, do not reveal it, but provide subtle hints based on the 'clue:' tag.
+    5. Stay in character: helpful but dry and precise.
     """
     response = model.generate_content([sys_instr, prompt])
     return response.text
@@ -175,22 +178,22 @@ elif st.session_state.phase == "PLAYING":
     search_key = f"searched_{cx}_{cy}" 
 
     if sector is not None:
-        # Initialize room visits if not exists
+        # 1. Initialize world state if needed
         if 'room_visits' not in st.session_state.world_state:
             st.session_state.world_state['room_visits'] = {}
-            
-        # --- DEFINE THESE FIRST to avoid NameErrors ---
+
+        # 2. DEFINE ALL VARIABLES AT THE TOP (Fixes the NameErrors)
         revert_node = sector.find("revert_desc")
         display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
         s_info = {"name": sector.find("name").text, "desc": display_text}
         exits = sector.findall("exit")
         visits = st.session_state.world_state['room_visits'].get(loc_key, 0)
 
-        # --- AUTO-NARRATION (Greeting Fix) ---
+        # --- AUTO-NARRATION (Welcome Fix) ---
         if st.session_state.get("needs_narration"):
             st.session_state.world_state['room_visits'][loc_key] = visits + 1
-            # We explicitly tell the AI it's an arrival so it knows to set the scene
-            intro_prompt = f"I have just arrived at {s_info['name']}. Give me a brief description of what I see."
+            # Explicit arrival prompt
+            intro_prompt = f"I have just arrived at {s_info['name']}. Give me a brief, canonical description of what I see."
             raw_response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
             
             st.session_state.messages.append({"role": "assistant", "content": f"<div style='color: #00FF41; font-weight: bold;'>{raw_response}</div>"})
