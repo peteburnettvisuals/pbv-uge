@@ -38,31 +38,22 @@ def get_image_url(filename, root_xml):
     return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
 
 def get_dm_response(prompt, sector_data, meta, exits_list):
-    # Clean the description to hide secrets from the AI's standard narration
     raw_desc = sector_data['desc']
-    # Only give the AI the part of the description BEFORE hidden clues
-    clean_desc = raw_desc.split("hidden:")[0].split("clue:")[0].strip()
-    
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
-    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc').split('hidden:')[0].strip()}" for e in exits_list])
+    # The AI NOW sees the secrets so it knows WHAT to look for
     
     sys_instr = f"""
-    You are the sarcastic 80s narrator for '{meta['title']}'.
-    Mood: {meta['mood']}
+    You are the Gatekeeper for '{meta['title']}'. 
     Location: {sector_data['name']}
-    Clean Room Description: {clean_desc}
-    Available Move Options: {exit_desc}
-
+    Full Secrets: {raw_desc}
+    
     RULES:
-    1. If the player asks what to do, refer them to the 'Available Exits' buttons.
-    2. NEVER reveal anything mentioned as 'hidden' or 'clue' unless the player specifically 
-       describes searching that exact area.
-    3. Stay in character: dry, slightly mean, and concise.
+    1. If the player describes an action that would logically find a hidden item or secret 
+       (e.g., 'I look behind the barrels'), you MUST include the code [REVEAL_SECRET] at the end of your response.
+    2. If they successfully find gold, include [GIVE_GOLD].
+    3. Stay in character. Be stingy with the secrets; don't give them away unless they earn it.
     """
-    response = model.generate_content([sys_instr, prompt])
-    return f"<div style='color: #00FF41; font-weight: bold; font-size: 1.1rem;'>{response.text}</div>"
+    # ... call Gemini ...
+    return response.text # Return raw text so we can process codes in the main loop
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
     # SUCCESS: Clear chat so the DM starts fresh in the new room
@@ -237,21 +228,29 @@ elif st.session_state.phase == "PLAYING":
 
         with col_r:
             st.subheader("Dungeon Master")
-            
-            # This creates a scrollable area 500px high
-            # It automatically scrolls to the bottom!
             chat_container = st.container(height=500)
             
-            with chat_container:
-                for msg in st.session_state.messages:
-                    with st.chat_message(msg["role"]):
-                        st.markdown(msg["content"], unsafe_allow_html=True)
-            
-            # The input sits outside/below the scrollable container
-            if prompt := st.chat_input("Ask the DM a question ..."):
+            # ... display history ...
+
+            if prompt := st.chat_input("What do you do?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                response = get_dm_response(prompt, s_info, st.session_state.meta, exits)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Get the AI response
+                raw_ai_msg = get_dm_response(prompt, s_info, st.session_state.meta, exits)
+                
+                # --- LOGIC TRIGGER SYSTEM ---
+                if "[REVEAL_SECRET]" in raw_ai_msg:
+                    st.session_state.world_state[search_key] = True
+                    raw_ai_msg = raw_ai_msg.replace("[REVEAL_SECRET]", "")
+                
+                if "[GIVE_GOLD]" in raw_ai_msg:
+                    # Logic to trigger gold collection
+                    raw_ai_msg = raw_ai_msg.replace("[GIVE_GOLD]", "")
+                
+                # Wrap the remaining cleaned text in Toby's high-contrast green
+                formatted_ai_msg = f"<div style='color: #00FF41; font-weight: bold;'>{raw_ai_msg}</div>"
+                
+                st.session_state.messages.append({"role": "assistant", "content": formatted_ai_msg})
                 st.rerun()
             
 with st.sidebar:
