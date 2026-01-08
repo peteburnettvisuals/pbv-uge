@@ -51,10 +51,10 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     
     STRICT OPERATING RULES:
     1. NEVER invent new items, lockets, or environmental features. If it is not in the 'Raw XML Data', it is a hallucination. 
-    2. Your ONLY job is to describe the Part 1 of the XML data.
-    3. If the player searches the EXACT location mentioned in the 'hidden:' part of the XML, you MUST respond with: 'You found it! [REVEAL_SECRET]'.
+    2. Your job is to describe the Part 1 of the XML data.
+    3. If the player searches in a location that arguably matches the location mentioned in the 'hidden:' part of the XML, you MUST respond with: 'You found it! [REVEAL_SECRET]'.
     4. If they search anywhere else, be dismissive. Tell them they find nothing but dust.
-    5. Stay in character as a cold, precise 80s computer.
+    5. Stay in character as a genial dungeon master.
     """
     response = model.generate_content([sys_instr, prompt])
     return response.text
