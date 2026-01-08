@@ -97,6 +97,7 @@ if "phase" not in st.session_state:
     st.session_state.gold = 0        # Added for currency
     st.session_state.just_rewound = False
     st.session_state.world_state = {"looted_gold": []} # Added for persistence
+    st.session_state.needs_narration = True
 
 # --- 4. ENGINE PHASES ---
 
@@ -156,25 +157,39 @@ elif st.session_state.phase == "PLAYING":
     cx, cy = st.session_state.coords['x'], st.session_state.coords['y']
     sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
     
-    # --- TRACK VISITS (For Treguard Hints later) ---
+    # Track visits
     loc_key = f"{cx},{cy}"
     if 'room_visits' not in st.session_state.world_state:
         st.session_state.world_state['room_visits'] = {}
-    st.session_state.world_state['room_visits'][loc_key] = st.session_state.world_state['room_visits'].get(loc_key, 0) + 1
+    
+    # Increment visit count ONLY if we are in narration mode (prevents double-counting on UI reruns)
+    if st.session_state.get("needs_narration"):
+        st.session_state.world_state['room_visits'][loc_key] = st.session_state.world_state['room_visits'].get(loc_key, 0) + 1
 
     if sector is not None:
-        # Determine description (Mirror of Chronos check)
         revert_node = sector.find("revert_desc")
         display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
+        
+        # DEFINE s_info HERE so it's available to everything below
+        s_info = {"name": sector.find("name").text, "desc": display_text}
+        visits = st.session_state.world_state['room_visits'].get(loc_key, 1)
+
+        # --- AUTO-NARRATION TRIGGER ---
+        if st.session_state.get("needs_narration"):
+            intro_prompt = f"I have just entered {s_info['name']}. This is my visit number {visits}. Narrate my arrival and describe the scene."
+            response = get_dm_response(intro_prompt, s_info, st.session_state.meta)
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            st.session_state.needs_narration = False
+            st.rerun()
 
         col_l, col_r = st.columns([1, 1], gap="large")
         
         with col_l:
             st.header(sector.find("name").text)
             st.image(get_image_url(sector.find("image").text, root))
+            # st.info(display_text) # REMOVED: Description is now in the DM's chat
             
-            
-            # --- MOVEMENT SECTION ---
             st.subheader("Available Exits")
             exits = sector.findall("exit")
             if exits:
@@ -183,7 +198,6 @@ elif st.session_state.phase == "PLAYING":
                     req_item = ex.get("requires")
                     btn_label = f"{ex.get('direction').upper()}: {ex.get('desc')}"
                     
-                    # Logic: If no requirement, or player HAS the item, allow movement
                     if req_item is None or req_item in st.session_state.inventory:
                         if cols[i].button(btn_label):
                             handle_movement(
@@ -195,21 +209,16 @@ elif st.session_state.phase == "PLAYING":
                                 fail_y=ex.get("fail_target_y")
                             )
                     else:
-                        # Requirement not met: Show a locked button
                         cols[i].button(f"🔒 {ex.get('direction').upper()} (Locked)", disabled=True)
                         st.warning(f"You'll need something to get across the {ex.get('desc')}...")
 
-            # --- INTERACTION HUB (Corrected Indentation) ---
             st.write("---")
-            
-            # 1. Gold
             gold_node = sector.find("contains_gold")
             if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
                 if st.button(f"🔍 Search Area"):
                     if collect_gold(gold_node.get("amount"), loc_key):
                         st.rerun()
 
-            # 2. Items
             item_node = sector.find("contains_item")
             if item_node is not None:
                 item_id = item_node.get("ref")
@@ -220,30 +229,21 @@ elif st.session_state.phase == "PLAYING":
                         st.toast(f"Found: {details['name']}")
                         st.rerun()
 
-            # 3. Vending (Gift Shop)
-            vend_node = sector.find("vending_item")
-            if vend_node is not None:
-                # Add logic for your buy_from_vending function here if needed
-                pass
-
-        
-    with col_r:
-        st.subheader("Dungeon Master")
-        for msg in st.session_state.messages:
-            st.chat_message(msg["role"]).write(msg["content"])
+        with col_r:
+            st.subheader("Dungeon Master")
+            # Display chat history
+            for msg in st.session_state.messages:
+                st.chat_message(msg["role"]).write(msg["content"])
             
-        if prompt := st.chat_input("What do you do?"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            st.rerun() # Forces UI refresh before AI call
+            # Handle manual player input
+            if prompt := st.chat_input("What do you do?"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                # Trigger manual AI response
+                s_info = {"name": sector.find("name").text, "desc": display_text}
+                response = get_dm_response(prompt, s_info, st.session_state.meta)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.rerun()
             
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    with st.chat_message("assistant"):
-        sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
-        s_info = {"name": sector.find("name").text, "desc": sector.find("desc").text}
-        response = get_dm_response(st.session_state.messages[-1]["content"], s_info, st.session_state.meta)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.write(response)
-
 with st.sidebar:
     if st.session_state.phase != "TITLE":
         if st.button("Quit to Menu"):
