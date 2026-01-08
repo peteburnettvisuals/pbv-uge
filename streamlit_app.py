@@ -176,10 +176,17 @@ elif st.session_state.phase == "PLAYING":
 
         # --- AUTO-NARRATION TRIGGER ---
         if st.session_state.get("needs_narration"):
-            intro_prompt = f"I have just entered {s_info['name']}. This is my visit number {visits}. Narrate my arrival and describe the scene."
+            # Define s_info early so it's not "Undefined"
+            s_info = {"name": sector.find("name").text, "desc": display_text}
+            visits = st.session_state.world_state['room_visits'].get(loc_key, 1)
+            
+            intro_prompt = f"I have just entered {s_info['name']}. This is my visit number {visits}. Narrate my arrival."
             response = get_dm_response(intro_prompt, s_info, st.session_state.meta)
             
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            # We use bold/white text for Toby's eyes!
+            formatted_response = f"**{response}**" 
+            
+            st.session_state.messages.append({"role": "assistant", "content": formatted_response})
             st.session_state.needs_narration = False
             st.rerun()
 
@@ -238,10 +245,11 @@ elif st.session_state.phase == "PLAYING":
             # Handle manual player input
             if prompt := st.chat_input("What do you do?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                # Trigger manual AI response
                 s_info = {"name": sector.find("name").text, "desc": display_text}
                 response = get_dm_response(prompt, s_info, st.session_state.meta)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Format the DM's reply to be bright
+                st.session_state.messages.append({"role": "assistant", "content": f"**{response}**"})
                 st.rerun()
             
 with st.sidebar:
