@@ -38,22 +38,30 @@ def get_image_url(filename, root_xml):
     return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
 
 def get_dm_response(prompt, sector_data, meta, exits_list):
+    # Restore the API call logic
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    
     raw_desc = sector_data['desc']
-    # The AI NOW sees the secrets so it knows WHAT to look for
+    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
     
     sys_instr = f"""
     You are the Gatekeeper for '{meta['title']}'. 
     Location: {sector_data['name']}
-    Full Secrets: {raw_desc}
+    Full Sector Data (Secrets included): {raw_desc}
+    Available Exits: {exit_desc}
     
     RULES:
-    1. If the player describes an action that would logically find a hidden item or secret 
-       (e.g., 'I look behind the barrels'), you MUST include the code [REVEAL_SECRET] at the end of your response.
+    1. If the player describes an action that would logically find a hidden item or exit 
+       (e.g., 'I look behind the barrels'), you MUST include the code [REVEAL_SECRET] at the end.
     2. If they successfully find gold, include [GIVE_GOLD].
-    3. Stay in character. Be stingy with the secrets; don't give them away unless they earn it.
+    3. Refer to the 'Available Exits' buttons if they are stuck.
+    4. NEVER reveal 'hidden' details unless they earn it through description.
+    5. Stay in character: sarcastic, dry, and 80s-themed.
     """
-    # ... call Gemini ...
-    return response.text # Return raw text so we can process codes in the main loop
+    # Restored the actual generation call
+    response = model.generate_content([sys_instr, prompt])
+    return response.text
 
 def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
     # SUCCESS: Clear chat so the DM starts fresh in the new room
@@ -168,24 +176,20 @@ elif st.session_state.phase == "PLAYING":
     sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
     
     loc_key = f"{cx},{cy}"
-    if 'room_visits' not in st.session_state.world_state:
-        st.session_state.world_state['room_visits'] = {}
-
+    search_key = f"searched_{cx}_{cy}" # Key to track if AI unlocked this room
+    
     if sector is not None:
         revert_node = sector.find("revert_desc")
         display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
         
         s_info = {"name": sector.find("name").text, "desc": display_text}
         exits = sector.findall("exit")
-        visits = st.session_state.world_state['room_visits'].get(loc_key, 0)
 
-        # --- AUTO-NARRATION TRIGGER ---
+        # --- AUTO-NARRATION ---
         if st.session_state.get("needs_narration"):
-            st.session_state.world_state['room_visits'][loc_key] = visits + 1
-            intro_prompt = f"I have just entered {s_info['name']}. Visit #{visits+1}. Narrate my arrival."
-            response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
-            
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            intro_prompt = f"I have just entered {s_info['name']}. Narrate my arrival."
+            raw_response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
+            st.session_state.messages.append({"role": "assistant", "content": f"<div style='color: #00FF41; font-weight: bold;'>{raw_response}</div>"})
             st.session_state.needs_narration = False
             st.rerun()
 
@@ -196,60 +200,51 @@ elif st.session_state.phase == "PLAYING":
             st.image(get_image_url(sector.find("image").text, root))
             
             st.subheader("Available Exits")
-            if exits:
-                cols = st.columns(len(exits))
-                for i, ex in enumerate(exits):
-                    req_item = ex.get("requires")
-                    btn_label = f"{ex.get('direction').upper()}: {ex.get('desc')}"
-                    
-                    if req_item is None or req_item in st.session_state.inventory:
-                        if cols[i].button(btn_label):
-                            handle_movement(ex.get("target_x"), ex.get("target_y"), ex.get("success_prob", 100), ex.get("fail_outcome"), ex.get("fail_target_x"), ex.get("fail_target_y"))
-                    else:
-                        cols[i].button(f"🔒 {ex.get('direction').upper()} (Locked)", disabled=True)
-                        st.caption(f"Requires: {get_library_info(req_item, root)['name']}")
+            for ex in exits:
+                req = ex.get("requires")
+                # Hide exits marked as 'hidden' until the AI triggers [REVEAL_SECRET]
+                is_hidden = "hidden:" in ex.get("desc")
+                if is_hidden and not st.session_state.world_state.get(search_key):
+                    continue 
 
-            st.write("---")
-            # Interaction Hub (Search/Take/Buy)
-            gold_node = sector.find("contains_gold")
-            if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
-                if st.button(f"🔍 Search {s_info['name']}"):
-                    if collect_gold(gold_node.get("amount"), loc_key):
-                        st.rerun()
+                if req is None or req in st.session_state.inventory:
+                    if st.button(f"{ex.get('direction').upper()}: {ex.get('desc').split('hidden:')[0]}"):
+                        handle_movement(ex.get("target_x"), ex.get("target_y"), ex.get("success_prob", 100), ex.get("fail_outcome"), ex.get("fail_target_x"), ex.get("fail_target_y"))
 
-            item_node = sector.find("contains_item")
-            if item_node is not None:
-                item_id = item_node.get("ref")
-                if item_id not in st.session_state.inventory:
-                    details = get_library_info(item_id, root)
+            # --- DYNAMIC INTERACTION HUB ---
+            if st.session_state.world_state.get(search_key):
+                st.write("---")
+                item_node = sector.find("contains_item")
+                if item_node is not None and item_node.get("ref") not in st.session_state.inventory:
+                    details = get_library_info(item_node.get("ref"), root)
                     if st.button(f"📦 Take {details['name']}"):
-                        st.session_state.inventory.append(item_id)
+                        st.session_state.inventory.append(item_node.get("ref"))
                         st.rerun()
 
         with col_r:
             st.subheader("Dungeon Master")
             chat_container = st.container(height=500)
+            with chat_container:
+                for msg in st.session_state.messages:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"], unsafe_allow_html=True)
             
-            # ... display history ...
-
             if prompt := st.chat_input("What do you do?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                # Get the AI response
                 raw_ai_msg = get_dm_response(prompt, s_info, st.session_state.meta, exits)
                 
-                # --- LOGIC TRIGGER SYSTEM ---
+                # --- INTERFACE TRIGGER LOGIC ---
                 if "[REVEAL_SECRET]" in raw_ai_msg:
                     st.session_state.world_state[search_key] = True
                     raw_ai_msg = raw_ai_msg.replace("[REVEAL_SECRET]", "")
                 
                 if "[GIVE_GOLD]" in raw_ai_msg:
-                    # Logic to trigger gold collection
+                    gold_node = sector.find("contains_gold")
+                    if gold_node is not None:
+                        collect_gold(gold_node.get("amount"), loc_key)
                     raw_ai_msg = raw_ai_msg.replace("[GIVE_GOLD]", "")
                 
-                # Wrap the remaining cleaned text in Toby's high-contrast green
                 formatted_ai_msg = f"<div style='color: #00FF41; font-weight: bold;'>{raw_ai_msg}</div>"
-                
                 st.session_state.messages.append({"role": "assistant", "content": formatted_ai_msg})
                 st.rerun()
             
