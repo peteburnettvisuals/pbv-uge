@@ -29,7 +29,7 @@ def get_gcs_client():
 def get_image_url(filename, root_xml):
     config = root_xml.find("config")
     folder = config.find("asset_folder").text if config is not None else "default"
-    path = f"assets/{folder}/{filename}"
+    path = f"uge_assets/{folder}/{filename}"
     client = get_gcs_client()
     blob = client.bucket(BUCKET_NAME).blob(path)
     return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
