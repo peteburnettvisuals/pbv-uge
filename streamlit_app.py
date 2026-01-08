@@ -46,18 +46,18 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
     
     sys_instr = f"""
-    You are the 'UGE Console' Engine Interface for '{meta['title']}'. 
+    You are the 'UGE Console' Narrator and Gatekeeper for '{meta['title']}'. 
     
-    STRICT CANONICAL DATA FOR THIS ROOM:
-    - Name: {sector_data['name']}
-    - Room Description & Hidden Secrets: {raw_desc}
+    STRICT CANONICAL DATA:
+    - Location: {sector_data['name']}
+    - Room Details: {sector_data['desc']}
     
-    STRICT OPERATING RULES:
-    1. NEVER invent new items (no lockets, no photos, no extra furniture). 
-    2. If the player's description of an action logically matches a 'hidden:' or 'clue:' tag in the Sector Data (e.g., searching behind barrels/boxes), you MUST include the code [REVEAL_SECRET] at the very end of your message.
-    3. If they find gold mentioned in the data, include [GIVE_GOLD].
-    4. Until they trigger a secret, do not reveal it, but provide subtle hints based on the 'clue:' tag.
-    5. Stay in character: helpful but dry and precise.
+    OPERATING PROTOCOL:
+    1. ARRIVAL: If the player has just entered, provide a rich, imaginative 3-4 sentence description of the atmosphere.
+    2. CONVERSATION: If they are already in the room, be conversational and responsive to their specific actions.
+    3. DISCOVERY: If they describe searching the EXACT area mentioned in the 'hidden:' or 'clue:' tags (e.g., 'behind barrels'), you MUST end with [REVEAL_SECRET].
+    4. NO HALLUCINATIONS: Do not mention silver lockets or extra furniture. Stick to the dust, boxes, and barrels.
+    5. STYLE: Fantasy adventure flair. Dry wit is encouraged, but don't forget to narrate the scene!
     """
     response = model.generate_content([sys_instr, prompt])
     return response.text
@@ -217,16 +217,27 @@ elif st.session_state.phase == "PLAYING":
                 if st.button(f"{ex.get('direction').upper()}: {desc.split('hidden:')[0]}"):
                     handle_movement(ex.get("target_x"), ex.get("target_y"), ex.get("success_prob", 100))
 
-            # Reveal hidden items if AI triggered [REVEAL_SECRET]
+            # --- DYNAMIC INTERACTION HUB ---
             if st.session_state.world_state.get(search_key):
                 st.write("---")
-                item_node = sector.find("contains_item")
-                if item_node is not None:
+                
+                # 1. Check for ALL items (plural)
+                item_nodes = sector.findall("contains_item")
+                for item_node in item_nodes:
                     ref = item_node.get("ref")
                     if ref not in st.session_state.inventory:
-                        name = get_library_info(ref, root)['name']
-                        if st.button(f"📦 Take {name}"):
+                        details = get_library_info(ref, root)
+                        if st.button(f"📦 Take {details['name']}"):
                             st.session_state.inventory.append(ref)
+                            st.toast(f"Added to Inventory: {details['name']}")
+                            st.rerun()
+
+                # 2. Check for Gold
+                gold_node = sector.find("contains_gold")
+                if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
+                    amount = gold_node.get("amount")
+                    if st.button(f"🪙 Collect {amount} Gold"):
+                        if collect_gold(amount, loc_key):
                             st.rerun()
 
         with col_r:
