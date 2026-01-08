@@ -41,22 +41,20 @@ def get_dm_response(prompt, sector_data, meta, exits_list):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    raw_desc = sector_data['desc']
-    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
-    
+    # We pass the full data so the AI knows the secrets, but we forbid inventing new ones
     sys_instr = f"""
-    You are the persistent Gatekeeper for '{meta['title']}'. 
-    Mood: {meta['mood']}
-    Location: {sector_data['name']}
-    Sector Data: {raw_desc}
-    Visible Exits: {exit_desc}
+    You are the 'UGE Console' Engine Interface for '{meta['title']}'. 
     
-    CRITICAL RULES:
-    1. DO NOT greet the player with "Welcome" or "Hello" if they are already in the room chatting.
-    2. If the player describes searching (e.g., 'I look behind the boxes'), check the Sector Data. If they find an item or secret, you MUST end your response with [REVEAL_SECRET].
-    3. If they find gold, end with [GIVE_GOLD].
-    4. Be imaginative and helpful, but keep the 80s dry humor.
-    5. NEVER reveal hidden details unless the player's description justifies the discovery.
+    ACTUAL DATA FOR THIS ROOM:
+    - Name: {sector_data['name']}
+    - Raw XML Data: {sector_data['desc']}
+    
+    STRICT OPERATING RULES:
+    1. NEVER invent new items, lockets, or environmental features. If it is not in the 'Raw XML Data', it is a hallucination. 
+    2. Your ONLY job is to describe the Part 1 of the XML data.
+    3. If the player searches the EXACT location mentioned in the 'hidden:' part of the XML, you MUST respond with: 'You found it! [REVEAL_SECRET]'.
+    4. If they search anywhere else, be dismissive. Tell them they find nothing but dust.
+    5. Stay in character as a cold, precise 80s computer.
     """
     response = model.generate_content([sys_instr, prompt])
     return response.text
