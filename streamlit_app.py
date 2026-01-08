@@ -58,6 +58,7 @@ def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x
     else:
         st.session_state.coords = {"x": int(target_x), "y": int(target_y)}
         st.session_state.just_rewound = False
+        st.session_state.needs_narration = True
     st.rerun()
 
 def collect_gold(amount, sector_key):
@@ -171,7 +172,7 @@ elif st.session_state.phase == "PLAYING":
         with col_l:
             st.header(sector.find("name").text)
             st.image(get_image_url(sector.find("image").text, root))
-            st.info(display_text)
+            
             
             # --- MOVEMENT SECTION ---
             st.subheader("Available Exits")
