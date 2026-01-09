@@ -5,54 +5,20 @@ import re
 import json
 import datetime
 
-# --- 1. CORE POC CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
+# --- 1. INITIALIZE SESSION STATE FIRST ---
+# This ensures 'current_scene_image' exists before the CSS tries to use it
+if "mana" not in st.session_state:
+    st.session_state.update({
+        "mana": 25,
+        "inventory": [],
+        "messages": [],
+        "current_waypoint": "1.1",
+        "current_scene_image": "oakhaven_overview_21x9.jpg", 
+        "current_overlay_image": None,
+        "objectives": [{"task": "Find Silver Weapon", "done": False}, {"task": "Get Bane-Oil", "done": False}]
+    })
 
-# Generate the live URL for the current scene
-bg_url = get_image_url(st.session_state.current_scene_image)
-
-st.markdown(f"""
-    <style>
-    /* 1. Set the background image to the entire App container */
-    .stApp {{
-        background-image: url("{bg_url}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        color: #FFFFFF;
-    }}
-
-    /* 2. Make the main content area transparent so the image shows through */
-    .main .block-container {{
-        background-color: rgba(0, 0, 0, 0.4); /* Subtle dark tint for readability */
-        padding: 2rem;
-        border-radius: 20px;
-    }}
-
-    /* 3. Style the HUD Overlay */
-    .stats-overlay {{
-        color: #00FF41;
-        font-family: 'Courier New', Courier, monospace;
-        background: rgba(0,0,0,0.8);
-        padding: 15px;
-        border: 1px solid #00FF41;
-        border-radius: 5px;
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        z-index: 100;
-    }}
-    
-    /* 4. Ensure tabs and chat stand out against the background */
-    [data-testid="stExpander"], .stTabs {{
-        background: rgba(26, 28, 35, 0.9) !important;
-        border-radius: 10px;
-        padding: 10px;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 2. FUNCTION LIBRARY ---
+# --- 1. FUNCTION LIBRARY ---
 BUCKET_NAME = "uge-repository-cu32"
 
 @st.cache_resource
@@ -183,17 +149,45 @@ def package_save_state():
     }
     return save_data
 
-# --- 3. SESSION STATE (The "Manual Save" Hub) ---
-if "mana" not in st.session_state:
-    st.session_state.update({
-        "mana": 25,
-        "inventory": [],
-        "messages": [],
-        "current_waypoint": "1.1",
-        "current_scene_image": "oakhaven_overview_21x9.jpg", # ADD THIS LINE
-        "current_overlay_image": None, # ADD THIS LINE
-        "objectives": [{"task": "Find Silver Weapon", "done": False}, {"task": "Get Bane-Oil", "done": False}]
-    })
+# --- 2. DYNAMIC CSS CONFIGURATION ---
+bg_url = get_image_url(st.session_state.current_scene_image)
+
+st.markdown(f"""
+    <style>
+    /* Sets the background for the entire app */
+    .stApp {{
+        background-image: url("{bg_url}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }}
+
+    /* Removes the white/dark 'box' around the content to show the background */
+    .main .block-container {{
+        background-color: rgba(0, 0, 0, 0.0); 
+        margin-top: 20px;
+    }}
+    
+    /* Styles the right-hand Hub (Activity/Inventory) */
+    [data-testid="stVerticalBlock"] > div:nth-child(2) [data-testid="stHorizontalBlock"] > div:nth-child(2) {{
+        background: rgba(255, 255, 255, 0.9);
+        color: #000000;
+        border-radius: 20px 20px 0 0;
+        padding: 20px;
+    }}
+
+    /* Style for the green HUD stats */
+    .stats-overlay {{
+        color: #00FF41;
+        font-family: 'Courier New', Courier, monospace;
+        background: rgba(0,0,0,0.8);
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
 
 # --- 4. THE UI LAYOUT (Matching your screenshot) ---
 
@@ -209,20 +203,18 @@ with col_head_2:
 col_left, col_right = st.columns([2, 1], gap="medium")
 
 with col_left:
-    st.markdown('<div class="cinematic-container">', unsafe_allow_html=True)
+    # We no longer render the background here because the CSS (stApp) handles it.
+    # This div allows us to keep the overlay and stats in the correct column.
+    st.markdown('<div class="cinematic-container" style="height: 400px; background: transparent;">', unsafe_allow_html=True)
     
-    # FETCH LIVE URL FROM GCS
-    img_url = get_image_url(st.session_state.current_scene_image)
-    st.image(img_url, use_column_width=True)
-    
-    # OVERLAY LOGIC
+    # OVERLAY LOGIC: Characters appear here, floating over the background
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
         st.image(overlay_url, width=300) 
         
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # STATS BAR (Bottom Left of Art)
+    # STATS BAR (Pinned to the bottom of the left column area)
     total_weight = sum(item['weight'] for item in st.session_state.inventory)
     st.markdown(f"""
         <div class="stats-overlay">
