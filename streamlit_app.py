@@ -161,130 +161,83 @@ def package_save_state():
     return save_data
 
 # --- 2. DYNAMIC CSS CONFIGURATION ---
-bg_url = get_image_url(st.session_state.current_scene_image)
+st.set_page_config(layout="centered", page_title="UGE: Warlock PoC")
 
-st.markdown(f"""
+st.markdown("""
     <style>
-    /* Full-screen background */
-    .stApp {{
-        background-color: #000000;
-        background-image: url("{bg_url}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }}
+    /* 1. White to Gray Gradient Background */
+    .stApp {
+        background: linear-gradient(180deg, #FFFFFF 0%, #E0E2E6 100%);
+        color: #1A1C23;
+    }
 
-    /* Main transparency */
-    .main .block-container {{
-        background-color: rgba(0, 0, 0, 0.0) !important;
-    }}
-    
-    /* THE HUB FIX: Unified solid background for the right column */
-    [data-testid="column"]:nth-child(2) > div {{
-        background-color: rgba(240, 242, 246, 0.98) !important; /* Solid light background */
-        border: 1px solid #ccc;
-        border-radius: 15px;
-        padding: 25px !important;
-        min-height: 80vh;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }}
+    /* 2. Centralized Content Block */
+    .main .block-container {
+        background: #FFFFFF;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-top: 50px;
+    }
 
-    /* Force dark text for all elements in the hub */
-    [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) span, 
-    [data-testid="column"]:nth-child(2) div,
-    [data-testid="column"]:nth-child(2) label {{
-        color: #1A1C23 !important;
-    }}
+    /* 3. Tab Styling for High Visibility */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+        border-bottom: 2px solid #EEE;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        font-weight: 600;
+        font-size: 18px;
+    }
 
-    /* Specific fix for tab readability */
-    .stTabs [data-baseweb="tab-list"] {{
-        background-color: #E0E2E6;
-        border-radius: 10px 10px 0 0;
-        margin-bottom: 10px;
-    }}
-
-    /* HUD stats remain terminal green */
-    .stats-overlay {{
-        color: #00FF41;
-        font-family: 'Courier New', Courier, monospace;
-        background: rgba(0,0,0,0.9);
-        padding: 15px;
-        border-top: 2px solid #00FF41;
-        font-weight: bold;
-    }}
+    /* 4. Chat Message Styling for Embedded Images */
+    .stChatMessage {
+        background-color: #F8F9FA;
+        border: 1px solid #E9ECEF;
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- 4. THE UI LAYOUT ---
+# --- 4. THE UI LAYOUT (Simple Version) ---
 
-col_left, col_right = st.columns([1.8, 1.2], gap="large")
+# Title and Chapter Heading
+st.title("The Warlock of Certain Death Mountain")
+st.caption("Chapter 1: The Village of Oakhaven")
 
-with col_left:
-    # Spacer to push character overlays into the visible 21:9 area
-    st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True)
+# The Tabbed Interface
+tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
+
+with tab_act:
+    # 1. Show the current scene visual at the top of the activity
+    scene_url = get_image_url(st.session_state.current_scene_image)
+    st.image(scene_url, use_column_width=True, caption=f"Current Location: {st.session_state.current_waypoint}")
     
+    # 2. Character Overlay (If an NPC is engaged)
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
-        st.markdown(f"""
-            <div style="display: flex; justify-content: flex-start; align-items: flex-end;">
-                <img src="{overlay_url}" style="width: 500px; filter: drop-shadow(5px 5px 15px black);">
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        # Maintenance spacer
-        st.markdown('<div style="height: 400px;"></div>', unsafe_allow_html=True)
-        
-    # HUD STATS BAR
-    total_weight = sum(item['weight'] for item in st.session_state.inventory)
-    st.markdown(f"""
-        <div class="stats-overlay">
-            &gt; MANA_SIGNATURE: {st.session_state.mana}%<br>
-            &gt; PACK_WEIGHT: {total_weight}kg / 20kg
-        </div>
-    """, unsafe_allow_html=True)
+        st.image(overlay_url, width=300)
 
-with col_right:
-    # 1. We create a placeholder and inject a specific, unique style for this column
-    st.markdown("""
-        <style>
-        /* This targets the specific 'Vertical Block' inside the second column */
-        [data-testid="column"]:nth-child(2) [data-testid="stVerticalBlock"] {
-            background-color: rgba(240, 242, 246, 0.98) !important;
-            border-radius: 15px !important;
-            padding: 25px !important;
-            border: 1px solid #ccc !important;
-            min-height: 80vh !important;
-        }
-        
-        /* Force dark text globally within this container */
-        [data-testid="column"]:nth-child(2) * {
-            color: #1A1C23 !important;
-        }}
-        
-        /* Specific override for the chat message bubbles to make them pop */
-        .stChatMessage {
-            background-color: rgba(255, 255, 255, 0.5) !important;
-            border: 1px solid #ddd !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    st.divider()
 
-    # 2. Render the actual UI elements
-    tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
+    # 3. Chat History
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state.messages:
+            st.chat_message(msg["role"]).write(msg["content"])
     
-    with tab_act:
-        chat_container = st.container(height=450)
-        with chat_container:
-            for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
+    # 4. User Input
+    if prompt := st.chat_input("What is your move?"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
         
-        if prompt := st.chat_input("What is your move?"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            raw_response = get_dm_response(prompt)
-            clean_narrative = process_dm_output(raw_response)
-            st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
-            st.rerun()
+        # Get DM response and process tags (Scene changes, items, etc.)
+        raw_response = get_dm_response(prompt)
+        clean_narrative = process_dm_output(raw_response)
+        
+        st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
+        st.rerun()
 
     with tab_inv:
         st.write("### Your Gear")
