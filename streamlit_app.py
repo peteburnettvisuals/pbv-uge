@@ -177,30 +177,40 @@ st.markdown(f"""
         background-color: rgba(0, 0, 0, 0.0) !important;
     }}
     
-    /* THE HUB FIX: Target the column AND the chat container */
+    /* LIGHT THEME PANEL FOR READABILITY (Right Column) */
     [data-testid="column"]:nth-child(2) > div {{
-        background: rgba(14, 17, 23, 0.98) !important;
-        border: 1px solid #444;
+        background: rgba(240, 242, 246, 0.95) !important; /* Solid light grey/white */
+        border: 1px solid #ddd;
         border-radius: 15px;
-        padding: 25px !important;
-        min-height: 80vh;
+        padding: 20px !important;
+        min-height: 85vh;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }}
 
-    /* Solid background for the Activity/Chat area specifically */
-    [data-testid="stChatFloatingInputContainer"], .stChatMessage {{
-        background-color: rgba(30, 32, 40, 0.9) !important;
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }}
-
-    /* Make all text inside the right panel white for high contrast */
+    /* FORCE DARK TEXT FOR LIGHT BG */
     [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) h3, 
-    [data-testid="column"]:nth-child(2) div {{
-        color: #FFFFFF !important;
+    [data-testid="column"]:nth-child(2) h3,
+    [data-testid="column"]:nth-child(2) span,
+    [data-testid="column"]:nth-child(2) .stChatMessageContent {{
+        color: #1A1C23 !important; /* Dark slate text */
     }}
 
-    /* HUD stats styling */
+    /* TAB STYLING: Light Background & Clear Borders */
+    .stTabs [data-baseweb="tab-list"] {{
+        background-color: #E0E2E6;
+        border-radius: 10px 10px 0 0;
+        padding: 5px;
+        gap: 5px;
+    }}
+
+    /* CHAT MESSAGE BUBBLES: Lighten to contrast with dark text */
+    .stChatMessage {{
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+    }}
+
+    /* HUD stats remain high-contrast green on black */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
