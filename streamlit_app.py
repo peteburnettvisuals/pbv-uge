@@ -203,14 +203,8 @@ st.markdown("""
         border-radius: 10px;
         border: 1px solid #E5E7EB;
     }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.markdown("""
-    <style>
-    /* ... existing background and layout CSS ... */
-
-    /* INCREASE TEXT SIZE IN INTERACTION COLUMN */
+            
+            /* INCREASE TEXT SIZE IN INTERACTION COLUMN */
     [data-testid="column"]:nth-child(2) p, 
     [data-testid="column"]:nth-child(2) li,
     [data-testid="column"]:nth-child(2) div {
@@ -230,6 +224,7 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+
 
 # --- 4. THE UI LAYOUT (Twin-Column) ---
 
