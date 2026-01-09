@@ -251,55 +251,65 @@ with col_left:
     """, unsafe_allow_html=True)
 
 with col_right:
-    # We wrap the tabs in a container and use a custom CSS class for the light background
+    # 1. Inject the hardcoded style directly into the column
     st.markdown("""
         <style>
-        /* This targets the specific container below */
+        .st-emotion-cache-12w0qpk { /* This targets the specific gap between tabs and content */
+            gap: 0px;
+        }
         .light-hub-bg {
             background-color: rgba(240, 242, 246, 0.98);
-            padding: 20px;
+            padding: 25px;
             border-radius: 15px;
             border: 1px solid #ccc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
         }
-        /* Force dark text inside this specific hub */
-        .light-hub-bg p, .light-hub-bg span, .light-hub-bg div {
+        /* Fix text color for all nested elements */
+        .light-hub-bg [data-testid="stMarkdownContainer"] p, 
+        .light-hub-bg .stChatMessageContent div {
             color: #1A1C23 !important;
+            font-weight: 500;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Creating the 'Hardcoded' background area
-    with st.container():
-        st.markdown('<div class="light-hub-bg">', unsafe_allow_html=True)
+    # 2. Open the container wrapper
+    st.markdown('<div class="light-hub-bg">', unsafe_allow_html=True)
+    
+    # 3. Render the UI assets inside
+    tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
+    
+    with tab_act:
+        chat_container = st.container(height=450)
+        with chat_container:
+            for msg in st.session_state.messages:
+                # Use a simple write for custom styled text inside the light bg
+                role_label = "DM: " if msg["role"] == "assistant" else "YOU: "
+                st.markdown(f"**{role_label}** {msg['content']}")
         
-        tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
-        
-        with tab_act:
-            chat_container = st.container(height=400)
-            with chat_container:
-                for msg in st.session_state.messages:
-                    st.chat_message(msg["role"]).write(msg["content"])
-            
-            if prompt := st.chat_input("What is your move?"):
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                raw_response = get_dm_response(prompt)
-                clean_narrative = process_dm_output(raw_response)
-                st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
-                st.rerun()
+        # Placing the chat input inside the light background area
+        if prompt := st.chat_input("What is your move?"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            raw_response = get_dm_response(prompt)
+            clean_narrative = process_dm_output(raw_response)
+            st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
+            st.rerun()
 
-        with tab_inv:
-            st.write("### Your Gear")
-            if not st.session_state.inventory:
-                st.info("No items carried.")
-            for item in st.session_state.inventory:
-                st.write(f"• {item['name']} ({item['weight']}kg)")
+    with tab_inv:
+        st.write("### Your Gear")
+        if not st.session_state.inventory:
+            st.info("No items carried.")
+        for item in st.session_state.inventory:
+            st.write(f"• {item['name']} ({item['weight']}kg)")
 
-        with tab_obj:
-            st.write("### Mission Intent")
-            for obj in st.session_state.objectives:
-                st.checkbox(obj['task'], value=obj['done'], disabled=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    with tab_obj:
+        st.write("### Mission Intent")
+        for obj in st.session_state.objectives:
+            st.checkbox(obj['task'], value=obj['done'], disabled=True)
+    
+    # 4. Explicitly close the wrapper
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # THE PERSISTENCE TRIGGER (Manual Save)
 st.divider()
