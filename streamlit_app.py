@@ -154,71 +154,81 @@ bg_url = get_image_url(st.session_state.current_scene_image)
 
 st.markdown(f"""
     <style>
-    /* Full-screen background */
+    /* 1. CINEMATIC LETTERBOX BARS */
     .stApp {{
+        background-color: #000000; /* Pure black bars */
         background-image: url("{bg_url}");
-        background-size: cover;
+        background-size: 100% auto; /* Stretches width, keeps 21:9 ratio */
         background-position: center;
+        background-repeat: no-repeat;
         background-attachment: fixed;
     }}
 
-    /* Make the main container transparent to see the background */
+    /* 2. HUD CONTAINER (Transparent background for the app itself) */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
-        margin-top: 20px;
+        max-width: 95%;
+        padding-top: 2rem;
     }}
     
-    /* Style the right-hand Hub (Activity/Inventory) with a white background */
+    /* 3. THE ACTIVITY/INVENTORY HUB (High Contrast) */
+    /* This targets the right column to give it a solid background */
     [data-testid="column"]:nth-child(2) {{
-        background: rgba(255, 255, 255, 0.9);
-        color: #000000;
-        border-radius: 20px;
+        background: rgba(14, 17, 23, 0.95); /* Deep dark blue-black */
+        border: 1px solid #333;
+        border-radius: 15px;
         padding: 25px;
-        margin-top: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }}
 
-    /* Green HUD stats styling */
+    /* 4. TAB STYLING (Making them readable) */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        background-color: #1A1C23;
+        border-radius: 5px 5px 0 0;
+        color: #888;
+    }}
+
+    /* 5. GREEN HUD (Stats) */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
-        background: rgba(0,0,0,0.8);
-        padding: 10px;
-        border-radius: 5px;
+        background: rgba(0,0,0,0.9);
+        padding: 12px;
+        border-top: 2px solid #00FF41;
         font-weight: bold;
+        display: inline-block;
     }}
     </style>
     """, unsafe_allow_html=True)
 
 
-# --- 4. THE UI LAYOUT (Matching your screenshot) ---
+# --- 4. THE UI LAYOUT ---
 
-# TOP HEADER
-col_head_1, col_head_2 = st.columns([4, 1])
-with col_head_1:
-    st.subheader("Game: The Warlock of Certain Death Mountain")
-    st.caption(f"Chapter 1: The Village of Oakhaven")
-with col_head_2:
-    st.markdown("### UGE")
-
-# MAIN CONTENT AREA
-col_left, col_right = st.columns([2, 1], gap="medium")
+col_left, col_right = st.columns([1.8, 1.2], gap="large")
 
 with col_left:
-    # We use an empty container to preserve space for overlays
-    st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
+    # This pushes the character down into the center of the 21:9 letterbox area
+    st.markdown('<div style="height: 15vh;"></div>', unsafe_allow_html=True)
     
-    # OVERLAY LOGIC: This renders the NPC on top of the mountain background
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
-        # Use a fixed width to keep the character silhouette appropriately sized
-        st.image(overlay_url, width=400) 
+        st.markdown(f"""
+            <div style="display: flex; justify-content: flex-start; align-items: flex-end;">
+                <img src="{overlay_url}" style="width: 500px; filter: drop-shadow(5px 5px 15px black);">
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown('<div style="height: 450px;"></div>', unsafe_allow_html=True)
         
-    # STATS BAR (The green HUD from your mockup)
+    # HUD STATS (Pinned at the bottom of the visible frame)
     total_weight = sum(item['weight'] for item in st.session_state.inventory)
     st.markdown(f"""
         <div class="stats-overlay">
-            MANA SIGNATURE: {st.session_state.mana}% | 
-            PACK WEIGHT: {total_weight}kg / 20kg
+            &gt; MANA_SIGNATURE: {st.session_state.mana}%<br>
+            &gt; PACK_WEIGHT: {total_weight}kg / 20kg
         </div>
     """, unsafe_allow_html=True)
 
