@@ -225,9 +225,43 @@ st.markdown("""
     .main .block-container {
         padding-bottom: 150px; 
     }
+            
+    /* 1. GEAR (Inventory) TAB CONTENT */
+    [data-testid="stExpander"] p, 
+    [data-testid="column"]:nth-child(2) h3,
+    .stAlert p {
+        font-size: 1.5rem !important; /* Jumbo headers and alerts */
+    }
+    
+    /* Targets the specific gear list items */
+    [data-testid="column"]:nth-child(2) .stText {
+        font-size: 1.4rem !important;
+        line-height: 1.8 !important;
+    }
+
+    /* 2. MISSION (Objectives) TAB CONTENT */
+    /* Enlarge the text for checkboxes in the Objectives tab */
+    .stCheckbox label p {
+        font-size: 1.6rem !important;
+        font-weight: 500 !important;
+        color: #1A1C23 !important;
+        margin-left: 10px !important;
+    }
+
+    /* Make the checkbox square itself larger */
+    [data-testid="stCheckbox"] div[role="checkbox"] {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    /* 3. INFO BOXES (e.g., "No items carried") */
+    .stAlert {
+        padding: 20px !important;
+        border-radius: 10px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
-
+    
 
 # --- 4. THE UI LAYOUT (Twin-Column) ---
 
