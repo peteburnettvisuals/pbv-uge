@@ -163,8 +163,6 @@ def package_save_state():
 # --- 2. DYNAMIC CSS CONFIGURATION ---
 bg_url = get_image_url(st.session_state.current_scene_image)
 
-st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
-
 st.markdown(f"""
     <style>
     /* 1. Full-screen background */
@@ -176,34 +174,38 @@ st.markdown(f"""
         background-attachment: fixed;
     }}
 
-    /* 2. Transparent main container */
+    /* 2. Make the main block container transparent */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
-        max-width: 95%;
-        padding-top: 2rem;
     }}
     
-    /* 3. NEW ADDITION: FORCE RIGHT PANEL BG
-       We target the horizontal block's second child (the right column)
+    /* 3. SOLID PANEL FOR CHAT/INVENTORY (The Fix)
+       This targets the inner container of the second column
     */
-    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {{
-        background: rgba(14, 17, 23, 0.98) !important;
+    div[data-testid="column"]:nth-of-type(2) > div {{
+        background-color: rgba(14, 17, 23, 0.95) !important;
         border: 1px solid #444;
         border-radius: 15px;
-        padding: 30px !important;
+        padding: 25px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,1);
         min-height: 80vh;
-        z-index: 1000;
     }}
 
-    /* 4. Ensure all text inside the right panel is white */
-    [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) h3, 
-    [data-testid="column"]:nth-child(2) label,
-    [data-testid="column"]:nth-child(2) div {{
+    /* 4. Ensure all text inside the right panel is white/readable */
+    div[data-testid="column"]:nth-of-type(2) p, 
+    div[data-testid="column"]:nth-of-type(2) h3, 
+    div[data-testid="column"]:nth-of-type(2) label,
+    div[data-testid="column"]:nth-of-type(2) span {{
         color: #FFFFFF !important;
     }}
 
-    /* 5. Green HUD stats bar */
+    /* 5. Tab styling to match the dark theme */
+    .stTabs [data-baseweb="tab-list"] {{
+        background-color: #0e1117;
+        border-radius: 10px 10px 0 0;
+    }}
+
+    /* 6. Green HUD stats bar */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -212,10 +214,9 @@ st.markdown(f"""
         border-top: 2px solid #00FF41;
         font-weight: bold;
         display: inline-block;
-        margin-top: 20px;
     }}
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- 4. THE UI LAYOUT ---
 
