@@ -156,50 +156,51 @@ st.markdown(f"""
     <style>
     /* 1. CINEMATIC LETTERBOX BARS */
     .stApp {{
-        background-color: #000000; /* Pure black bars */
+        background-color: #000000; /* Pure black for top/bottom bars */
         background-image: url("{bg_url}");
-        background-size: 100% auto; /* Stretches width, keeps 21:9 ratio */
+        background-size: 100% auto; /* Stretches width, creates letterbox if needed */
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
     }}
 
-    /* 2. HUD CONTAINER (Transparent background for the app itself) */
+    /* 2. MAIN CONTAINER TRANSPARENCY */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
         max-width: 95%;
-        padding-top: 2rem;
     }}
     
-    /* 3. THE ACTIVITY/INVENTORY HUB (High Contrast) */
-    /* This targets the right column to give it a solid background */
+    /* 3. SOLID HUB BACKGROUND (Fixes readability) */
+    /* Targets the right column specifically to create a solid panel */
     [data-testid="column"]:nth-child(2) {{
-        background: rgba(14, 17, 23, 0.95); /* Deep dark blue-black */
-        border: 1px solid #333;
+        background: rgba(14, 17, 23, 0.98) !important; /* Nearly solid dark background */
+        border: 1px solid #444;
         border-radius: 15px;
         padding: 25px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        box-shadow: 0 10px 30px rgba(0,0,0,1);
+        color: white !important;
     }}
 
-    /* 4. TAB STYLING (Making them readable) */
+    /* 4. HUB TAB READABILITY */
     .stTabs [data-baseweb="tab-list"] {{
-        gap: 10px;
+        background-color: #1A1C23;
+        border-radius: 10px 10px 0 0;
+        padding: 5px;
     }}
     .stTabs [data-baseweb="tab"] {{
-        background-color: #1A1C23;
-        border-radius: 5px 5px 0 0;
-        color: #888;
+        color: #eee !important;
     }}
 
-    /* 5. GREEN HUD (Stats) */
+    /* 5. HUD STATS (Green terminal style) */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
         background: rgba(0,0,0,0.9);
-        padding: 12px;
+        padding: 15px;
         border-top: 2px solid #00FF41;
         font-weight: bold;
         display: inline-block;
+        margin-top: 20px;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -210,8 +211,8 @@ st.markdown(f"""
 col_left, col_right = st.columns([1.8, 1.2], gap="large")
 
 with col_left:
-    # This pushes the character down into the center of the 21:9 letterbox area
-    st.markdown('<div style="height: 15vh;"></div>', unsafe_allow_html=True)
+    # Spacer to push character overlays into the visible 21:9 area
+    st.markdown('<div style="height: 10vh;"></div>', unsafe_allow_html=True)
     
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
@@ -221,9 +222,10 @@ with col_left:
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown('<div style="height: 450px;"></div>', unsafe_allow_html=True)
+        # Maintenance spacer
+        st.markdown('<div style="height: 400px;"></div>', unsafe_allow_html=True)
         
-    # HUD STATS (Pinned at the bottom of the visible frame)
+    # HUD STATS BAR
     total_weight = sum(item['weight'] for item in st.session_state.inventory)
     st.markdown(f"""
         <div class="stats-overlay">
@@ -233,8 +235,8 @@ with col_left:
     """, unsafe_allow_html=True)
 
 with col_right:
-    # THE TABBED INTERFACE
-    tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
+    # Right column now has a solid background from CSS for perfect readability
+    tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
     
     with tab_act:
         chat_container = st.container(height=400)
