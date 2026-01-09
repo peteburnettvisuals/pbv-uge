@@ -165,19 +165,19 @@ st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
 st.markdown("""
     <style>
-    /* 1. Main Background Gradient (White to Gray) */
+    /* 1. Main Background Gradient */
     .stApp {
         background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%);
         background-attachment: fixed;
     }
 
-    /* 2. Container Padding for Footer Clearance */
+    /* 2. Container Padding */
     .main .block-container {
         padding-top: 2rem;
-        padding-bottom: 120px; /* Increased to prevent HUD overlap */
+        padding-bottom: 150px; 
     }
 
-    /* 3. PINNED HUD FOOTER (Terminal Green) */
+    /* 3. PINNED HUD FOOTER */
     .fixed-footer {
         position: fixed;
         bottom: 0;
@@ -195,40 +195,42 @@ st.markdown("""
         display: flex;
         justify-content: space-around;
         font-weight: bold;
-        font-size: 1.1rem;
+        font-size: 1.2rem;
     }
 
-    /* 4. Interaction Column: Global Text Size Increase */
-    /* Targets the right-hand column (interaction area) */
-    [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) li {
-        font-size: 1.35rem !important; 
-        line-height: 1.7 !important;
+    /* 4. FORCE JUMBO TEXT IN CHAT */
+    /* This targets the actual message content inside the bubbles */
+    [data-testid="stChatMessageContent"] p {
+        font-size: 1.5rem !important; 
+        line-height: 1.8 !important;
         color: #1A1C23 !important;
     }
 
-    /* 5. Chat Window & Message Bubbles */
-    [data-testid="stChatMessageContainer"] {
-        background: rgba(249, 250, 251, 0.8);
-        border-radius: 10px;
-        border: 1px solid #E5E7EB;
-    }
-
-    /* Forces chat message content to be larger */
-    .stChatMessageContent div p {
-        font-size: 1.35rem !important;
-    }
-
-    /* 6. Enlarge Tab Labels (Activity, Inventory, etc.) */
-    .stTabs [data-baseweb="tab"] {
+    /* This targets lists (like the a, b, c options) */
+    [data-testid="stChatMessageContent"] li {
         font-size: 1.4rem !important;
-        font-weight: 700 !important;
-        padding-bottom: 10px;
+        margin-bottom: 10px;
     }
 
-    /* 7. Input Box Text Size */
+    /* 5. Chat Window Styling */
+    [data-testid="stChatMessageContainer"] {
+        background: rgba(249, 250, 251, 0.9);
+        border-radius: 12px;
+        border: 1px solid #D1D5DB;
+        padding: 15px;
+    }
+
+    /* 6. Enlarge Tab Labels */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.6rem !important;
+        font-weight: 800 !important;
+        padding: 10px 20px !important;
+    }
+
+    /* 7. Input Box */
     .stChatInput textarea {
-        font-size: 1.2rem !important;
+        font-size: 1.4rem !important;
+        line-height: 1.5 !important;
     }
     </style>
     """, unsafe_allow_html=True)
