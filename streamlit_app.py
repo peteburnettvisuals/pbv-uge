@@ -165,7 +165,7 @@ bg_url = get_image_url(st.session_state.current_scene_image)
 
 st.markdown(f"""
     <style>
-    /* Full-screen background and main transparency */
+    /* Full-screen background */
     .stApp {{
         background-color: #000000;
         background-image: url("{bg_url}");
@@ -173,44 +173,38 @@ st.markdown(f"""
         background-position: center;
         background-attachment: fixed;
     }}
+
+    /* Main transparency */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
     }}
     
-    /* LIGHT THEME PANEL FOR READABILITY (Right Column) */
+    /* THE HUB FIX: Unified solid background for the right column */
     [data-testid="column"]:nth-child(2) > div {{
-        background: rgba(240, 242, 246, 0.95) !important; /* Solid light grey/white */
-        border: 1px solid #ddd;
+        background-color: rgba(240, 242, 246, 0.98) !important; /* Solid light background */
+        border: 1px solid #ccc;
         border-radius: 15px;
-        padding: 20px !important;
-        min-height: 85vh;
+        padding: 25px !important;
+        min-height: 80vh;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }}
 
-    /* FORCE DARK TEXT FOR LIGHT BG */
+    /* Force dark text for all elements in the hub */
     [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) h3,
-    [data-testid="column"]:nth-child(2) span,
-    [data-testid="column"]:nth-child(2) .stChatMessageContent {{
-        color: #1A1C23 !important; /* Dark slate text */
+    [data-testid="column"]:nth-child(2) span, 
+    [data-testid="column"]:nth-child(2) div,
+    [data-testid="column"]:nth-child(2) label {{
+        color: #1A1C23 !important;
     }}
 
-    /* TAB STYLING: Light Background & Clear Borders */
+    /* Specific fix for tab readability */
     .stTabs [data-baseweb="tab-list"] {{
         background-color: #E0E2E6;
         border-radius: 10px 10px 0 0;
-        padding: 5px;
-        gap: 5px;
+        margin-bottom: 10px;
     }}
 
-    /* CHAT MESSAGE BUBBLES: Lighten to contrast with dark text */
-    .stChatMessage {{
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border: 1px solid #ccc;
-        border-radius: 10px;
-    }}
-
-    /* HUD stats remain high-contrast green on black */
+    /* HUD stats remain terminal green */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -251,44 +245,16 @@ with col_left:
     """, unsafe_allow_html=True)
 
 with col_right:
-    # 1. Inject the hardcoded style directly into the column
-    st.markdown("""
-        <style>
-        .st-emotion-cache-12w0qpk { /* This targets the specific gap between tabs and content */
-            gap: 0px;
-        }
-        .light-hub-bg {
-            background-color: rgba(240, 242, 246, 0.98);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid #ccc;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
-        }
-        /* Fix text color for all nested elements */
-        .light-hub-bg [data-testid="stMarkdownContainer"] p, 
-        .light-hub-bg .stChatMessageContent div {
-            color: #1A1C23 !important;
-            font-weight: 500;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # 2. Open the container wrapper
-    st.markdown('<div class="light-hub-bg">', unsafe_allow_html=True)
-    
-    # 3. Render the UI assets inside
+    # The CSS in Section 2 now automatically handles the background for this column.
     tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
     
     with tab_act:
         chat_container = st.container(height=450)
         with chat_container:
             for msg in st.session_state.messages:
-                # Use a simple write for custom styled text inside the light bg
-                role_label = "DM: " if msg["role"] == "assistant" else "YOU: "
-                st.markdown(f"**{role_label}** {msg['content']}")
+                # Rendering standard chat messages
+                st.chat_message(msg["role"]).write(msg["content"])
         
-        # Placing the chat input inside the light background area
         if prompt := st.chat_input("What is your move?"):
             st.session_state.messages.append({"role": "user", "content": prompt})
             raw_response = get_dm_response(prompt)
@@ -307,9 +273,6 @@ with col_right:
         st.write("### Mission Intent")
         for obj in st.session_state.objectives:
             st.checkbox(obj['task'], value=obj['done'], disabled=True)
-    
-    # 4. Explicitly close the wrapper
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # THE PERSISTENCE TRIGGER (Manual Save)
 st.divider()
