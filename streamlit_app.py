@@ -165,77 +165,77 @@ st.set_page_config(layout="centered", page_title="UGE: Warlock PoC")
 
 st.markdown("""
     <style>
-    /* 1. White to Gray Gradient Background */
+    /* 1. Main Background Gradient */
     .stApp {
-        background: linear-gradient(180deg, #FFFFFF 0%, #E0E2E6 100%);
-        color: #1A1C23;
+        background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%);
+        background-attachment: fixed;
     }
 
-    /* 2. Centralized Content Block */
+    /* 2. Containerizing the Main Content Area */
     .main .block-container {
-        background: #FFFFFF;
-        padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-top: 50px;
+        max-width: 800px;
+        padding-bottom: 120px; /* Space for the pinned footer */
     }
 
-    /* 3. Tab Styling for High Visibility */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-        border-bottom: 2px solid #EEE;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        font-weight: 600;
-        font-size: 18px;
+    /* 3. Fixed-Height Chat Window */
+    /* This prevents the page from expanding vertically forever */
+    [data-testid="stChatMessageContainer"] {
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 10px;
+        background: #F9FAFB;
     }
 
-    /* 4. Chat Message Styling for Embedded Images */
-    .stChatMessage {
-        background-color: #F8F9FA;
-        border: 1px solid #E9ECEF;
-        border-radius: 10px;
-        margin-bottom: 15px;
+    /* 4. PINNED HUD FOOTER */
+    .fixed-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #111827; /* Dark charcoal */
+        color: #00FF41; /* Terminal green */
+        padding: 15px 0;
+        text-align: center;
+        z-index: 999;
+        border-top: 2px solid #00FF41;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    
+    .footer-content {
+        display: flex;
+        justify-content: space-around;
+        max-width: 800px;
+        margin: 0 auto;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. THE UI LAYOUT (Simple Version) ---
+# --- 4. THE UI LAYOUT ---
 
-# Title and Chapter Heading
 st.title("The Warlock of Certain Death Mountain")
 st.caption("Chapter 1: The Village of Oakhaven")
 
-# The Tabbed Interface
 tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
 
 with tab_act:
-    # 1. Show the current scene visual at the top of the activity
+    # 1. Image Header (Inside the tab)
     scene_url = get_image_url(st.session_state.current_scene_image)
-    st.image(scene_url, use_column_width=True, caption=f"Current Location: {st.session_state.current_waypoint}")
+    st.image(scene_url, use_column_width=True)
     
-    # 2. Character Overlay (If an NPC is engaged)
-    if st.session_state.current_overlay_image:
-        overlay_url = get_image_url(st.session_state.current_overlay_image)
-        st.image(overlay_url, width=300)
-
-    st.divider()
-
-    # 3. Chat History
-    chat_container = st.container()
-    with chat_container:
+    # 2. Containerized Chat Area
+    # Streamlit's container(height=...) automatically handles the scrolling/pinning
+    with st.container(height=500):
         for msg in st.session_state.messages:
             st.chat_message(msg["role"]).write(msg["content"])
     
-    # 4. User Input
+    # 3. Input pinned just below the chat box
     if prompt := st.chat_input("What is your move?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Get DM response and process tags (Scene changes, items, etc.)
         raw_response = get_dm_response(prompt)
         clean_narrative = process_dm_output(raw_response)
-        
         st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
         st.rerun()
 
@@ -250,6 +250,18 @@ with tab_act:
         st.write("### Mission Intent")
         for obj in st.session_state.objectives:
             st.checkbox(obj['task'], value=obj['done'], disabled=True)
+
+# 5. RENDER THE PINNED HUD (Always visible at the bottom)
+total_weight = sum(item['weight'] for item in st.session_state.inventory)
+st.markdown(f"""
+    <div class="fixed-footer">
+        <div class="footer-content">
+            <span>MANA_SIGNATURE: {st.session_state.mana}%</span>
+            <span>PACK_WEIGHT: {total_weight}kg / 20kg</span>
+            <span>WAYPOINT: {st.session_state.current_waypoint}</span>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 # THE PERSISTENCE TRIGGER (Manual Save)
 st.divider()
