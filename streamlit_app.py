@@ -1,287 +1,106 @@
-import random
 import streamlit as st
 import xml.etree.ElementTree as ET
-from google.cloud import storage
-from google.oauth2 import service_account
 import google.generativeai as genai
-import datetime
 
-# --- 1. CONFIGURATION ---
-BUCKET_NAME = "uge-repository-cu32" # Based on your screenshot
-st.set_page_config(layout="wide", page_title="UGE Console")
+# --- 1. CORE POC CONFIGURATION ---
+st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
-# Updated Retro CSS with a fixed-height chat style
+# CSS: Implementing the "Cinematic" look
 st.markdown("""
     <style>
-    .stApp { background-color: #0E1117; color: #00FF41; font-family: 'Courier New', Courier, monospace; }
-    [data-testid="stSidebar"] { background-color: #1A1C23; border-right: 1px solid #00FF41; }
-    .stButton>button { width: 100%; border: 1px solid #00FF41; background-color: transparent; color: #00FF41; }
-    
-    /* Ensure the chat input stays at the bottom of its column */
-    .stChatInput { position: sticky; bottom: 0; background-color: #0E1117; padding-top: 10px; }
+    .stApp { background-color: #0E1117; color: #FFFFFF; }
+    /* Cinematic Background Container */
+    .cinematic-container {
+        border: 2px solid #333;
+        border-radius: 10px;
+        padding: 10px;
+        background: #1A1C23;
+    }
+    .stats-overlay {
+        color: #00FF41;
+        font-family: 'Courier New', Courier, monospace;
+        background: rgba(0,0,0,0.6);
+        padding: 10px;
+        border-radius: 5px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. GCS & AI SETUP ---
-@st.cache_resource
-def get_gcs_client():
-    creds_info = st.secrets["gcp_service_account"]
-    credentials = service_account.Credentials.from_service_account_info(creds_info)
-    return storage.Client(credentials=credentials, project=creds_info["project_id"])
+# --- 2. DECOUPLED INGESTION ---
+def load_poc_assets():
+    # In production, these pull from your GCS bucket
+    # For now, we simulate the merge of World and Mission
+    world_xml = """<world><location id='LOC_TAVERN' name='Rusty Tankard' image='tavern_21x9.jpg'/></world>"""
+    mission_xml = """<mission><chapter id='1'><waypoint id='1.1' loc_ref='LOC_TAVERN' desc='The air is thick with whispers.'/></waypoint></chapter></mission>"""
+    return ET.fromstring(world_xml), ET.fromstring(mission_xml)
 
-def get_image_url(filename, root_xml):
-    config = root_xml.find("config")
-    folder = config.find("asset_folder").text if config is not None else "default"
-    path = f"uge_assets/{folder}/{filename}"
-    client = get_gcs_client()
-    blob = client.bucket(BUCKET_NAME).blob(path)
-    return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
+# --- 3. SESSION STATE (The "Manual Save" Hub) ---
+if "mana" not in st.session_state:
+    st.session_state.update({
+        "mana": 25,
+        "inventory": [], # Array of dicts: {"name": "Silver Dagger", "weight": 1.5}
+        "messages": [],
+        "current_waypoint": "1.1",
+        "objectives": [{"task": "Find Silver Weapon", "done": False}, {"task": "Get Bane-Oil", "done": False}]
+    })
 
-def get_dm_response(prompt, sector_data, meta, exits_list):
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
+# --- 4. THE UI LAYOUT (Matching your screenshot) ---
+
+# TOP HEADER
+col_head_1, col_head_2 = st.columns([4, 1])
+with col_head_1:
+    st.subheader("Game: The Warlock of Certain Death Mountain")
+    st.caption(f"Chapter 1: The Village of Oakhaven")
+with col_head_2:
+    st.markdown("### UGE")
+
+# MAIN CONTENT AREA
+col_left, col_right = st.columns([2, 1], gap="medium")
+
+with col_left:
+    # 21:9 CINEMATIC AREA
+    st.markdown('<div class="cinematic-container">', unsafe_allow_html=True)
+    st.image("https://via.placeholder.com/1200x514/1A1C23/00FF41?text=Cinematic+21:9+View") # Placeholder
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # We pass the full data so the AI knows exactly what is hidden and where
-    raw_desc = sector_data['desc']
-    exit_desc = ", ".join([f"{e.get('direction').upper()}: {e.get('desc')}" for e in exits_list])
+    # STATS BAR (Bottom Left of Art)
+    total_weight = sum(item['weight'] for item in st.session_state.inventory)
+    st.markdown(f"""
+        <div class="stats-overlay">
+            MANA SIGNATURE: {st.session_state.mana}% | 
+            PACK WEIGHT: {total_weight}kg / 20kg
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_right:
+    # THE TABBED INTERFACE
+    tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
     
-    sys_instr = f"""
-    You are the 'UGE Console' Narrator and Gatekeeper for '{meta['title']}'. 
-    
-    STRICT CANONICAL DATA:
-    - Location: {sector_data['name']}
-    - Room Details: {sector_data['desc']}
-    
-    OPERATING PROTOCOL:
-    1. ARRIVAL: If the player has just entered, provide a rich, imaginative 3-4 sentence description of the atmosphere.
-    2. CONVERSATION: If they are already in the room, be conversational and responsive to their specific actions.
-    3. DISCOVERY: If they describe searching the EXACT area mentioned in the 'hidden:' or 'clue:' tags (e.g., 'behind barrels'), you MUST end with [REVEAL_SECRET].
-    4. NO HALLUCINATIONS: Do not mention silver lockets or extra furniture. Stick to the dust, boxes, and barrels.
-    5. STYLE: Fantasy adventure flair. Dry wit is encouraged, but don't forget to narrate the scene!
-    """
-    response = model.generate_content([sys_instr, prompt])
-    return response.text
-
-def handle_movement(target_x, target_y, success_prob=100, fail_text=None, fail_x=None, fail_y=None):
-    # SUCCESS: Clear chat so the DM starts fresh in the new room
-    st.session_state.messages = [] 
-    
-    if random.randint(1, 100) > int(success_prob):
-        st.error(fail_text)
-        if fail_x is not None:
-            st.session_state.coords = {"x": int(fail_x), "y": int(fail_y)}
-            st.session_state.just_rewound = True 
-            st.session_state.needs_narration = True
-    else:
-        st.session_state.coords = {"x": int(target_x), "y": int(target_y)}
-        st.session_state.just_rewound = False
-        st.session_state.needs_narration = True
-    st.rerun()
-
-def collect_gold(amount, sector_key):
-    """Adds gold to wallet and marks the location as 'looted'."""
-    if sector_key not in st.session_state.world_state['looted_gold']:
-        st.session_state.gold += int(amount)
-        st.session_state.world_state['looted_gold'].append(sector_key)
-        return True
-    return False
-
-def buy_from_vending(item_id, cost):
-    """Checks wallet and grants an Artifact ID if funds allow."""
-    if st.session_state.gold >= int(cost):
-        st.session_state.gold -= int(cost)
-        st.session_state.inventory.append(item_id)
-        return True
-    return False
-
-def get_library_info(ref_id, root_xml):
-    """Looks up an ID in the library and returns its name/desc."""
-    # We use root_xml passed from the current session
-    entry = root_xml.find(f".//*[@id='{ref_id}']")
-    if entry is not None:
-        return {
-            "name": entry.get("name", "Unknown Item"),
-            "desc": entry.get("desc", "No description available.")
-        }
-    return {"name": "Unknown", "desc": ""}
-
-# --- 3. SESSION STATE ---
-if "phase" not in st.session_state:
-    st.session_state.phase = "TITLE"
-    st.session_state.coords = {"x": 0, "y": 0}
-    st.session_state.messages = []
-    st.session_state.inventory = [] # Added for items
-    st.session_state.gold = 0        # Added for currency
-    st.session_state.just_rewound = False
-    st.session_state.world_state = {"looted_gold": []} # Added for persistence
-    st.session_state.needs_narration = True
-
-# --- 4. ENGINE PHASES ---
-
-# PHASE: TITLE
-if st.session_state.phase == "TITLE":
-    st.markdown("<h1 style='text-align: center;'>UGE CONSOLE</h1>", unsafe_allow_html=True)
-    
-    client = get_gcs_client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="cartridges/")
-    cartridges = [b.name.split("/")[-1] for b in blobs if b.name.endswith(".xml")]
-    
-    selected = st.selectbox("Choose a Cartridge", cartridges)
-    if st.button("INSERT CARTRIDGE"):
-        blob = client.bucket(BUCKET_NAME).blob(f"cartridges/{selected}")
-        root = ET.fromstring(blob.download_as_text())
-        st.session_state.cartridge_root = root
-        cfg = root.find("config")
-        st.session_state.meta = {
-            "title": cfg.find("game_title").text,
-            "blurb": cfg.find("game_blurb").text,
-            "cover": cfg.find("game_cover").text,
-            "mood": cfg.find("mood").text,
-            "genres": cfg.find("genre_categories").text
-        }
-        st.session_state.phase = "COVER"
-        st.rerun()
-
-# PHASE: COVER
-elif st.session_state.phase == "COVER":
-    # ... existing cover display code ...
-    if st.button("START QUEST"):
-        # Instead of going straight to PLAYING, go to PREAMBLE
-        st.session_state.phase = "PREAMBLE"
-        st.rerun()
-
-# --- NEW PHASE: PREAMBLE ---
-elif st.session_state.phase == "PREAMBLE":
-    root = st.session_state.cartridge_root
-    preamble_text = root.find("config/game_preamble").text
-    
-    st.markdown("<h1 style='text-align: center;'>The Story So Far...</h1>", unsafe_allow_html=True)
-    
-    c1, c2, c3 = st.columns([1, 3, 1])
-    with c2:
-        # Style it like a classic 80s intro block
-        st.markdown(f"### {preamble_text}")
-        st.write("---")
-        if st.button("START HERE"):
-            st.session_state.coords = {"x": 0, "y": 0} # Resets position to the Cave
-            st.session_state.just_rewound = False      # Clears any previous death flags
-            st.session_state.phase = "PLAYING"
-            st.rerun()
-
-# PHASE: PLAYING
-elif st.session_state.phase == "PLAYING":
-    root = st.session_state.cartridge_root
-    cx, cy = st.session_state.coords['x'], st.session_state.coords['y']
-    sector = root.find(f".//sector[@x='{cx}'][@y='{cy}']")
-    
-    loc_key = f"{cx},{cy}"
-    search_key = f"searched_{cx}_{cy}" 
-
-    if sector is not None:
-        # 1. Initialize world state if needed
-        if 'room_visits' not in st.session_state.world_state:
-            st.session_state.world_state['room_visits'] = {}
-
-        # 2. DEFINE ALL VARIABLES AT THE TOP (Fixes the NameErrors)
-        revert_node = sector.find("revert_desc")
-        display_text = revert_node.text if (st.session_state.get("just_rewound") and revert_node is not None) else sector.find("desc").text
-        s_info = {"name": sector.find("name").text, "desc": display_text}
-        exits = sector.findall("exit")
-        visits = st.session_state.world_state['room_visits'].get(loc_key, 0)
-
-        # --- AUTO-NARRATION (Welcome Fix) ---
-        if st.session_state.get("needs_narration"):
-            st.session_state.world_state['room_visits'][loc_key] = visits + 1
-            # Explicit arrival prompt
-            intro_prompt = f"I have just arrived at {s_info['name']}. Give me a brief, canonical description of what I see."
-            raw_response = get_dm_response(intro_prompt, s_info, st.session_state.meta, exits)
-            
-            st.session_state.messages.append({"role": "assistant", "content": f"<div style='color: #00FF41; font-weight: bold;'>{raw_response}</div>"})
-            st.session_state.needs_narration = False
-            st.rerun()
-
-        col_l, col_r = st.columns([1, 1], gap="large")
+    with tab_act:
+        chat_container = st.container(height=400)
+        with chat_container:
+            for msg in st.session_state.messages:
+                st.chat_message(msg["role"]).write(msg["content"])
         
-        with col_l:
-            st.header(sector.find("name").text)
-            st.image(get_image_url(sector.find("image").text, root))
-            
-            st.subheader("Exits & Discovery")
-            # Show buttons ONLY if revealed or not hidden
-            for ex in exits:
-                desc = ex.get("desc")
-                is_hidden = "hidden:" in desc
-                if is_hidden and not st.session_state.world_state.get(search_key):
-                    continue
-                
-                if st.button(f"{ex.get('direction').upper()}: {desc.split('hidden:')[0]}"):
-                    handle_movement(ex.get("target_x"), ex.get("target_y"), ex.get("success_prob", 100))
-
-            # --- DYNAMIC INTERACTION HUB ---
-            if st.session_state.world_state.get(search_key):
-                st.write("---")
-                
-                # 1. Check for ALL items (plural)
-                item_nodes = sector.findall("contains_item")
-                for item_node in item_nodes:
-                    ref = item_node.get("ref")
-                    if ref not in st.session_state.inventory:
-                        details = get_library_info(ref, root)
-                        if st.button(f"📦 Take {details['name']}"):
-                            st.session_state.inventory.append(ref)
-                            st.toast(f"Added to Inventory: {details['name']}")
-                            st.rerun()
-
-                # 2. Check for Gold
-                gold_node = sector.find("contains_gold")
-                if gold_node is not None and loc_key not in st.session_state.world_state['looted_gold']:
-                    amount = gold_node.get("amount")
-                    if st.button(f"🪙 Collect {amount} Gold"):
-                        if collect_gold(amount, loc_key):
-                            st.rerun()
-
-        with col_r:
-            st.subheader("Dungeon Master")
-            # Fixed-height scrollable container
-            chat_container = st.container(height=500)
-            with chat_container:
-                for msg in st.session_state.messages:
-                    with st.chat_message(msg["role"]):
-                        st.markdown(msg["content"], unsafe_allow_html=True)
-            
-            if prompt := st.chat_input("What do you do?"):
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                # Get response and check for triggers
-                raw_ai_msg = get_dm_response(prompt, s_info, st.session_state.meta, exits)
-                
-                if "[REVEAL_SECRET]" in raw_ai_msg:
-                    st.session_state.world_state[search_key] = True
-                    raw_ai_msg = raw_ai_msg.replace("[REVEAL_SECRET]", "")
-                
-                if "[GIVE_GOLD]" in raw_ai_msg:
-                    gold_node = sector.find("contains_gold")
-                    if gold_node: collect_gold(gold_node.get("amount"), loc_key)
-                    raw_ai_msg = raw_ai_msg.replace("[GIVE_GOLD]", "")
-                
-                formatted_ai_msg = f"<div style='color: #00FF41; font-weight: bold;'>{raw_ai_msg}</div>"
-                st.session_state.messages.append({"role": "assistant", "content": formatted_ai_msg})
-                st.rerun()
-            
-with st.sidebar:
-    if st.session_state.phase != "TITLE":
-        if st.button("Quit to Menu"):
-            st.session_state.phase = "TITLE"
-            st.session_state.messages = []
+        if prompt := st.chat_input("What is your move?"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            # Logic to trigger Gemini DM response would go here
             st.rerun()
-            
-        st.header("🎒 Adventurer Stats")
-        st.metric("Gold", f"🪙 {st.session_state.gold}")
-        
-        st.subheader("Inventory")
-        if st.session_state.inventory:
-            for item_id in st.session_state.inventory:
-                details = get_library_info(item_id, st.session_state.cartridge_root)
-                st.write(f"- {details['name']}")
-        else:
-            st.write("*Your pockets are empty.*")
+
+    with tab_inv:
+        st.write("### Your Gear")
+        if not st.session_state.inventory:
+            st.info("No items carried.")
+        for item in st.session_state.inventory:
+            st.write(f"• {item['name']} ({item['weight']}kg)")
+
+    with tab_obj:
+        st.write("### Mission Intent")
+        for obj in st.session_state.objectives:
+            st.checkbox(obj['task'], value=obj['done'], disabled=True)
+
+# THE PERSISTENCE TRIGGER (Manual Save)
+st.divider()
+if st.button("💾 SYNCHRONIZE STATE TO ARCHIVE"):
+    # This is where your GCS/DB write logic lives
+    st.success("State Saved.")
