@@ -165,40 +165,51 @@ st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
 st.markdown("""
     <style>
-    /* 1. Main Background Gradient */
+    /* 1. Main Background and Header Jumbo Scaling */
     .stApp {
         background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%);
         background-attachment: fixed;
     }
-
-    /* 2. Page Title & Chapter Caption */
-    h1 {
-        font-size: 3.5rem !important; /* Massive Main Title */
-    }
+    h1 { font-size: 3.5rem !important; }
     [data-testid="stCaptionContainer"] {
-        font-size: 1.6rem !important; /* Jumbo Chapter Title */
+        font-size: 1.6rem !important;
         font-weight: 600 !important;
-        color: #4B5563 !important;
-        margin-bottom: 20px;
     }
 
-    /* 3. Tab Headers (Activity, Inventory, etc.) */
-    /* Target the button text inside the tabs */
+    /* 2. TAB HEADERS JUMBO SCALING */
     .stTabs [data-baseweb="tab"] div {
         font-size: 1.8rem !important;
         font-weight: 800 !important;
     }
-    /* Target the tab container for height */
     .stTabs [data-baseweb="tab"] {
         height: 70px !important;
-        padding-top: 10px !important;
     }
 
-    /* 4. Chat Message Text (Existing Jumbo Fix) */
-    [data-testid="stChatMessageContent"] p {
-        font-size: 1.5rem !important; 
+    /* 3. GEAR AND MISSION CONTENT JUMBO SCALING */
+    /* Targets text in Gear (Inventory) and Mission (Objectives) tabs */
+    [data-testid="stVerticalBlock"] p, 
+    [data-testid="stVerticalBlock"] li,
+    [data-testid="stCheckbox"] label p {
+        font-size: 1.5rem !important;
         line-height: 1.8 !important;
         color: #1A1C23 !important;
+    }
+
+    /* Make Objective checkboxes larger to match text */
+    [data-testid="stCheckbox"] div[role="checkbox"] {
+        width: 35px !important;
+        height: 35px !important;
+    }
+
+    /* 4. CHAT INPUT FIX (Prevents shrinking) */
+    /* Targets the container and the text area specifically */
+    .stChatInput {
+        padding-bottom: 20px !important;
+    }
+    [data-testid="stChatInput"] textarea {
+        font-size: 1.4rem !important;
+        padding: 15px !important;
+        min-height: 60px !important;
     }
 
     /* 5. PINNED HUD FOOTER */
@@ -221,44 +232,7 @@ st.markdown("""
         font-size: 1.3rem;
     }
     
-    /* 6. Spacing for Footer */
-    .main .block-container {
-        padding-bottom: 150px; 
-    }
-            
-    /* 1. GEAR (Inventory) TAB CONTENT */
-    [data-testid="stExpander"] p, 
-    [data-testid="column"]:nth-child(2) h3,
-    .stAlert p {
-        font-size: 1.5rem !important; /* Jumbo headers and alerts */
-    }
-    
-    /* Targets the specific gear list items */
-    [data-testid="column"]:nth-child(2) .stText {
-        font-size: 1.4rem !important;
-        line-height: 1.8 !important;
-    }
-
-    /* 2. MISSION (Objectives) TAB CONTENT */
-    /* Enlarge the text for checkboxes in the Objectives tab */
-    .stCheckbox label p {
-        font-size: 1.6rem !important;
-        font-weight: 500 !important;
-        color: #1A1C23 !important;
-        margin-left: 10px !important;
-    }
-
-    /* Make the checkbox square itself larger */
-    [data-testid="stCheckbox"] div[role="checkbox"] {
-        width: 30px !important;
-        height: 30px !important;
-    }
-
-    /* 3. INFO BOXES (e.g., "No items carried") */
-    .stAlert {
-        padding: 20px !important;
-        border-radius: 10px !important;
-    }
+    .main .block-container { padding-bottom: 150px; }
     </style>
     """, unsafe_allow_html=True)
     
