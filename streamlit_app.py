@@ -245,11 +245,15 @@ with col_interaction:
 
     with tab_inv:
         st.write("### Your Gear")
-        # (Inventory Logic Here)
+        if not st.session_state.inventory:
+            st.info("No items carried.")
+        for item in st.session_state.inventory:
+            st.write(f"• {item['name']} ({item['weight']}kg)")
 
     with tab_obj:
         st.write("### Mission Intent")
-        # (Objectives Logic Here)
+        for obj in st.session_state.objectives:
+            st.checkbox(obj['task'], value=obj['done'], disabled=True)
 
 # 5. RENDER THE PINNED HUD
 total_weight = sum(item['weight'] for item in st.session_state.inventory)
