@@ -1,6 +1,9 @@
 import streamlit as st
 import xml.etree.ElementTree as ET
 import google.generativeai as genai
+import re
+import json
+import datetime
 
 # --- 1. CORE POC CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
@@ -26,21 +29,146 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DECOUPLED INGESTION ---
+# --- 2. FUNCTION LIBRARY ---
+BUCKET_NAME = "uge-repository-cu32"
+
+@st.cache_resource
+def get_gcs_client():
+    from google.oauth2 import service_account
+    from google.cloud import storage
+    creds_info = st.secrets["gcp_service_account"]
+    credentials = service_account.Credentials.from_service_account_info(creds_info)
+    return storage.Client(credentials=credentials, project=creds_info["project_id"])
+
+
 def load_poc_assets():
-    # In production, these pull from your GCS bucket
-    # For now, we simulate the merge of World and Mission
-    world_xml = """<world><location id='LOC_TAVERN' name='Rusty Tankard' image='tavern_21x9.jpg'/></world>"""
-    mission_xml = """<mission><chapter id='1'><waypoint id='1.1' loc_ref='LOC_TAVERN' desc='The air is thick with whispers.'/></waypoint></chapter></mission>"""
-    return ET.fromstring(world_xml), ET.fromstring(mission_xml)
+    """Pulls the decoupled XML files from the GCS bucket root."""
+    client = get_gcs_client()
+    bucket = client.bucket(BUCKET_NAME)
+    
+    # Pulling the two separate libraries
+    world_blob = bucket.blob("world_atlas_oakhaven.xml")
+    mission_blob = bucket.blob("mission_warlock_malakor.xml")
+    
+    world_xml = ET.fromstring(world_blob.download_as_text())
+    mission_xml = ET.fromstring(mission_blob.download_as_text())
+    
+    return world_xml, mission_xml
+
+def get_image_url(filename):
+    """Fetch signed URL for the 21:9 cinematic assets."""
+    client = get_gcs_client()
+    # Assuming images are in a folder called 'cinematics' in your bucket
+    blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
+    return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
+
+def process_dm_output(raw_text):
+    """
+    Parses hidden tags and updates session state.
+    Tags: [SET_SCENE:ID], [GIVE_ITEM:NAME:WEIGHT], [MANA_MOD:X], [OBJ_COMPLETE:INDEX]
+    """
+    # 1. Handle Scene Changes
+    # This regex now looks for the 'set_scene' command within brackets
+    # Matches: [SET_SCENE: set_scene(tavern_interior_21x9)]
+    scene_match = re.search(r"\[SET_SCENE: set_scene\((.*?)\)\]", raw_text)
+    if scene_match:
+        asset_id = scene_match.group(1)
+        # Add the extension back if your bucket needs it
+        st.session_state.current_scene_image = f"{asset_id}.jpg"
+
+    # 2. Handle NPC Overlay (Silhouette/Character)
+    overlay_match = re.search(r"\[SET_OVERLAY: set_overlay\((.*?)\)\]", raw_text)
+    if overlay_match:
+        st.session_state.current_overlay_image = overlay_match.group(1)
+    else:
+        # Clear overlay if no NPC is currently engaged
+        st.session_state.current_overlay_image = None
+    
+    # 2. Handle Inventory Additions
+    item_matches = re.findall(r"\[GIVE_ITEM: (.*?): (.*?)\]", raw_text)
+    for name, weight in item_matches:
+        st.session_state.inventory.append({"name": name, "weight": float(weight)})
+        st.toast(f"🎒 Picked up: {name}")
+
+    # 3. Handle Mana Adjustments
+    mana_match = re.search(r"\[MANA_MOD: (.*?)\]", raw_text)
+    if mana_match:
+        st.session_state.mana += int(mana_match.group(1))
+
+    # 4. Handle Objective Updates
+    obj_match = re.search(r"\[OBJ_COMPLETE: (.*?)\]", raw_text)
+    if obj_match:
+        idx = int(obj_match.group(1))
+        if idx < len(st.session_state.objectives):
+            st.session_state.objectives[idx]["done"] = True
+
+    # Remove all tags from the text before displaying to player
+    clean_text = re.sub(r"\[.*?\]", "", raw_text).strip()
+    return clean_text
+
+def get_dm_response(prompt):
+    # 1. Configuration (Usually stored in st.secrets)
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+
+    # 2. Context Injection (The 'Decoupled' logic)
+    # We pull the specific waypoint and world data from our ingested XMLs
+    world_atlas, mission_script = load_poc_assets()
+    
+    current_wp_id = st.session_state.current_waypoint
+    wp_node = mission_script.find(f".//waypoint[@id='{current_wp_id}']")
+    loc_ref = wp_node.get('loc_ref')
+    loc_node = world_atlas.find(f".//location[@id='{loc_ref}']")
+
+    sys_instr = f"""
+    You are the Narrator for 'Warlock of Certain Death Mountain'.
+    
+    CURRENT LOCATION (World Atlas): {loc_node.get('name')} - {loc_node.find('base_desc').text if loc_node.find('base_desc') is not None else ""}
+    MISSION CONTEXT (Script): {wp_node.find('desc').text}
+    
+    UI CONTROL PROTOCOL:
+    You MUST use these tags to drive the UI. Do not show them to the player.
+    - [SET_SCENE: LOC_ID] Use this if the player moves to a new location.
+    - [GIVE_ITEM: Name: Weight] (Example: [GIVE_ITEM: Rusty Key: 0.1])
+    - [MANA_MOD: +/-X] (Example: [MANA_MOD: 10] if they use magic)
+    - [OBJ_COMPLETE: Index] (Use 0 for 'Find Weapon', 1 for 'Get Oil')
+
+    INVENTORY: {st.session_state.inventory}
+    """
+
+    # 3. Generate content with history for continuity
+    # We pass the last few messages to keep the thread alive
+    chat = model.start_chat(history=[])
+    response = chat.send_message([sys_instr, prompt])
+    
+    return response.text
+
+def package_save_state():
+    """Packages current session variables into a serializable dictionary."""
+    save_data = {
+        "metadata": {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "waypoint": st.session_state.current_waypoint
+        },
+        "stats": {
+            "mana": st.session_state.mana,
+            "pack_weight": sum(item['weight'] for item in st.session_state.inventory)
+        },
+        "inventory": st.session_state.inventory,
+        "objectives": st.session_state.objectives,
+        "history": st.session_state.messages[-10:] # Keep the last 10 lines for context
+    }
+    return save_data
 
 # --- 3. SESSION STATE (The "Manual Save" Hub) ---
 if "mana" not in st.session_state:
     st.session_state.update({
         "mana": 25,
-        "inventory": [], # Array of dicts: {"name": "Silver Dagger", "weight": 1.5}
+        "inventory": [],
         "messages": [],
         "current_waypoint": "1.1",
+        "current_scene_image": "oakhaven_overview_21x9.jpg", # ADD THIS LINE
+        "current_overlay_image": None, # ADD THIS LINE
         "objectives": [{"task": "Find Silver Weapon", "done": False}, {"task": "Get Bane-Oil", "done": False}]
     })
 
@@ -58,9 +186,17 @@ with col_head_2:
 col_left, col_right = st.columns([2, 1], gap="medium")
 
 with col_left:
-    # 21:9 CINEMATIC AREA
     st.markdown('<div class="cinematic-container">', unsafe_allow_html=True)
-    st.image("https://via.placeholder.com/1200x514/1A1C23/00FF41?text=Cinematic+21:9+View") # Placeholder
+    
+    # FETCH LIVE URL FROM GCS
+    img_url = get_image_url(st.session_state.current_scene_image)
+    st.image(img_url, use_column_width=True)
+    
+    # OVERLAY LOGIC
+    if st.session_state.current_overlay_image:
+        overlay_url = get_image_url(st.session_state.current_overlay_image)
+        st.image(overlay_url, width=300) 
+        
     st.markdown('</div>', unsafe_allow_html=True)
     
     # STATS BAR (Bottom Left of Art)
@@ -82,10 +218,19 @@ with col_right:
             for msg in st.session_state.messages:
                 st.chat_message(msg["role"]).write(msg["content"])
         
-        if prompt := st.chat_input("What is your move?"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            # Logic to trigger Gemini DM response would go here
-            st.rerun()
+        # In the main loop:
+            if prompt := st.chat_input("What is your move?"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                
+                # 1. Get raw response from Gemini
+                raw_response = get_dm_response(prompt)
+                
+                # 2. Parse tags and update HUD/Inventory/Objectives
+                clean_narrative = process_dm_output(raw_response)
+                
+                # 3. Add only the narrative to the chat history
+                st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
+                st.rerun()
 
     with tab_inv:
         st.write("### Your Gear")
@@ -102,5 +247,7 @@ with col_right:
 # THE PERSISTENCE TRIGGER (Manual Save)
 st.divider()
 if st.button("💾 SYNCHRONIZE STATE TO ARCHIVE"):
-    # This is where your GCS/DB write logic lives
-    st.success("State Saved.")
+    save_payload = package_save_state()
+    # For now, we can show the JSON so you can see it working
+    st.json(save_payload) 
+    st.success("State Packaged for Archive.")
