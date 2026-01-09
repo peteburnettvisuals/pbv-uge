@@ -245,14 +245,38 @@ with col_left:
     """, unsafe_allow_html=True)
 
 with col_right:
-    # The CSS in Section 2 now automatically handles the background for this column.
+    # 1. We create a placeholder and inject a specific, unique style for this column
+    st.markdown("""
+        <style>
+        /* This targets the specific 'Vertical Block' inside the second column */
+        [data-testid="column"]:nth-child(2) [data-testid="stVerticalBlock"] {
+            background-color: rgba(240, 242, 246, 0.98) !important;
+            border-radius: 15px !important;
+            padding: 25px !important;
+            border: 1px solid #ccc !important;
+            min-height: 80vh !important;
+        }
+        
+        /* Force dark text globally within this container */
+        [data-testid="column"]:nth-child(2) * {
+            color: #1A1C23 !important;
+        }}
+        
+        /* Specific override for the chat message bubbles to make them pop */
+        .stChatMessage {
+            background-color: rgba(255, 255, 255, 0.5) !important;
+            border: 1px solid #ddd !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # 2. Render the actual UI elements
     tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
     
     with tab_act:
         chat_container = st.container(height=450)
         with chat_container:
             for msg in st.session_state.messages:
-                # Rendering standard chat messages
                 st.chat_message(msg["role"]).write(msg["content"])
         
         if prompt := st.chat_input("What is your move?"):
