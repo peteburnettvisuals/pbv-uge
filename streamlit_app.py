@@ -154,7 +154,7 @@ bg_url = get_image_url(st.session_state.current_scene_image)
 
 st.markdown(f"""
     <style>
-    /* Sets the background for the entire app */
+    /* Full-screen background */
     .stApp {{
         background-image: url("{bg_url}");
         background-size: cover;
@@ -162,22 +162,22 @@ st.markdown(f"""
         background-attachment: fixed;
     }}
 
+    /* Make the main container transparent to see the background */
     .main .block-container {{
-        background-color: rgba(0, 0, 0, 0.0) !important; /* Forces 100% transparency */
-        margin-top: 10px;
+        background-color: rgba(0, 0, 0, 0.0) !important;
+        margin-top: 20px;
     }}
     
-    /* Styles the right-hand Hub (Activity/Inventory) */
-    /* Updated selector to target the right-hand column container */
-    [data-testid="column"]:nth-child(2) {
-    background: rgba(255, 255, 255, 0.9);
-    color: #000000;
-    border-radius: 20px;
-    padding: 25px;
-    margin-top: 20px;
-}
+    /* Style the right-hand Hub (Activity/Inventory) with a white background */
+    [data-testid="column"]:nth-child(2) {{
+        background: rgba(255, 255, 255, 0.9);
+        color: #000000;
+        border-radius: 20px;
+        padding: 25px;
+        margin-top: 20px;
+    }}
 
-    /* Style for the green HUD stats */
+    /* Green HUD stats styling */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
