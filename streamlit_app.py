@@ -165,19 +165,19 @@ st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
 st.markdown("""
     <style>
-    /* 1. Main Background Gradient */
+    /* 1. Main Background Gradient (White to Gray) */
     .stApp {
         background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%);
         background-attachment: fixed;
     }
 
-    /* 2. Remove default padding for a tighter fit */
+    /* 2. Container Padding for Footer Clearance */
     .main .block-container {
         padding-top: 2rem;
-        padding-bottom: 100px; /* Space for fixed footer */
+        padding-bottom: 120px; /* Increased to prevent HUD overlap */
     }
 
-    /* 3. PINNED HUD FOOTER */
+    /* 3. PINNED HUD FOOTER (Terminal Green) */
     .fixed-footer {
         position: fixed;
         bottom: 0;
@@ -185,7 +185,7 @@ st.markdown("""
         width: 100%;
         background-color: #111827;
         color: #00FF41;
-        padding: 10px 0;
+        padding: 15px 0;
         z-index: 999;
         border-top: 2px solid #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -195,32 +195,40 @@ st.markdown("""
         display: flex;
         justify-content: space-around;
         font-weight: bold;
+        font-size: 1.1rem;
     }
 
-    /* 4. Chat Styling to ensure no page growth */
+    /* 4. Interaction Column: Global Text Size Increase */
+    /* Targets the right-hand column (interaction area) */
+    [data-testid="column"]:nth-child(2) p, 
+    [data-testid="column"]:nth-child(2) li {
+        font-size: 1.35rem !important; 
+        line-height: 1.7 !important;
+        color: #1A1C23 !important;
+    }
+
+    /* 5. Chat Window & Message Bubbles */
     [data-testid="stChatMessageContainer"] {
-        background: #F9FAFB;
+        background: rgba(249, 250, 251, 0.8);
         border-radius: 10px;
         border: 1px solid #E5E7EB;
     }
-            
-            /* INCREASE TEXT SIZE IN INTERACTION COLUMN */
-    [data-testid="column"]:nth-child(2) p, 
-    [data-testid="column"]:nth-child(2) li,
-    [data-testid="column"]:nth-child(2) div {
-        font-size: 1.15rem !important; /* Larger body text */
-        line-height: 1.6 !important;   /* Better spacing between lines */
+
+    /* Forces chat message content to be larger */
+    .stChatMessageContent div p {
+        font-size: 1.35rem !important;
     }
 
-    /* SPECIFICALLY TARGET CHAT MESSAGES */
-    .stChatMessage {
-        font-size: 1.2rem !important;
-    }
-
-    /* ENLARGE TAB LABELS */
+    /* 6. Enlarge Tab Labels (Activity, Inventory, etc.) */
     .stTabs [data-baseweb="tab"] {
-        font-size: 1.25rem !important;
+        font-size: 1.4rem !important;
         font-weight: 700 !important;
+        padding-bottom: 10px;
+    }
+
+    /* 7. Input Box Text Size */
+    .stChatInput textarea {
+        font-size: 1.2rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
