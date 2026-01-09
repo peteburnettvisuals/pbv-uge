@@ -154,44 +154,50 @@ bg_url = get_image_url(st.session_state.current_scene_image)
 
 st.markdown(f"""
     <style>
-    /* 1. CINEMATIC LETTERBOX BARS */
+    /* Full-screen background */
     .stApp {{
-        background-color: #000000; /* Pure black for top/bottom bars */
+        background-color: #000000;
         background-image: url("{bg_url}");
-        background-size: 100% auto; /* Stretches width, creates letterbox if needed */
+        background-size: cover;
         background-position: center;
-        background-repeat: no-repeat;
         background-attachment: fixed;
     }}
 
-    /* 2. MAIN CONTAINER TRANSPARENCY */
+    /* Transparent main container */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
         max-width: 95%;
+        padding-top: 2rem;
     }}
     
-    /* 3. SOLID HUB BACKGROUND (Fixes readability) */
-    /* Targets the right column specifically to create a solid panel */
-    [data-testid="column"]:nth-child(2) {{
-        background: rgba(14, 17, 23, 0.98) !important; /* Nearly solid dark background */
+    /* SOLID RIGHT PANEL FIX 
+       Targets both the column and the inner vertical block 
+    */
+    [data-testid="column"]:nth-child(2) > div {{
+        background: rgba(14, 17, 23, 0.98) !important;
         border: 1px solid #444;
         border-radius: 15px;
-        padding: 25px;
+        padding: 30px;
         box-shadow: 0 10px 30px rgba(0,0,0,1);
+        min-height: 80vh;
+    }}
+
+    /* Ensure text inside the panel is white */
+    [data-testid="column"]:nth-child(2) * {{
         color: white !important;
     }}
 
-    /* 4. HUB TAB READABILITY */
+    /* Tab styling for high contrast */
     .stTabs [data-baseweb="tab-list"] {{
-        background-color: #1A1C23;
+        background-color: #0e1117;
         border-radius: 10px 10px 0 0;
-        padding: 5px;
     }}
+    
     .stTabs [data-baseweb="tab"] {{
-        color: #eee !important;
+        background-color: transparent !important;
     }}
 
-    /* 5. HUD STATS (Green terminal style) */
+    /* Green HUD stats bar */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -204,7 +210,6 @@ st.markdown(f"""
     }}
     </style>
     """, unsafe_allow_html=True)
-
 
 # --- 4. THE UI LAYOUT ---
 
@@ -253,6 +258,10 @@ with col_right:
                 
                 # 2. Parse tags and update HUD/Inventory/Objectives
                 clean_narrative = process_dm_output(raw_response)
+
+                # TEMPORARY TEST LINE (Add after clean_narrative =)
+                if "bob" in prompt.lower():
+                    st.session_state.current_overlay_image = "npc_bob_barkeep.png"
                 
                 # 3. Add only the narrative to the chat history
                 st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
