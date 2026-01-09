@@ -165,7 +165,7 @@ bg_url = get_image_url(st.session_state.current_scene_image)
 
 st.markdown(f"""
     <style>
-    /* 1. Full-screen background */
+    /* Full-screen background and main transparency */
     .stApp {{
         background-color: #000000;
         background-image: url("{bg_url}");
@@ -173,39 +173,34 @@ st.markdown(f"""
         background-position: center;
         background-attachment: fixed;
     }}
-
-    /* 2. Make the main block container transparent */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
     }}
     
-    /* 3. SOLID PANEL FOR CHAT/INVENTORY (The Fix)
-       This targets the inner container of the second column
-    */
-    div[data-testid="column"]:nth-of-type(2) > div {{
-        background-color: rgba(14, 17, 23, 0.95) !important;
+    /* THE HUB FIX: Target the column AND the chat container */
+    [data-testid="column"]:nth-child(2) > div {{
+        background: rgba(14, 17, 23, 0.98) !important;
         border: 1px solid #444;
         border-radius: 15px;
         padding: 25px !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,1);
         min-height: 80vh;
     }}
 
-    /* 4. Ensure all text inside the right panel is white/readable */
-    div[data-testid="column"]:nth-of-type(2) p, 
-    div[data-testid="column"]:nth-of-type(2) h3, 
-    div[data-testid="column"]:nth-of-type(2) label,
-    div[data-testid="column"]:nth-of-type(2) span {{
+    /* Solid background for the Activity/Chat area specifically */
+    [data-testid="stChatFloatingInputContainer"], .stChatMessage {{
+        background-color: rgba(30, 32, 40, 0.9) !important;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }}
+
+    /* Make all text inside the right panel white for high contrast */
+    [data-testid="column"]:nth-child(2) p, 
+    [data-testid="column"]:nth-child(2) h3, 
+    [data-testid="column"]:nth-child(2) div {{
         color: #FFFFFF !important;
     }}
 
-    /* 5. Tab styling to match the dark theme */
-    .stTabs [data-baseweb="tab-list"] {{
-        background-color: #0e1117;
-        border-radius: 10px 10px 0 0;
-    }}
-
-    /* 6. Green HUD stats bar */
+    /* HUD stats styling */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -213,10 +208,9 @@ st.markdown(f"""
         padding: 15px;
         border-top: 2px solid #00FF41;
         font-weight: bold;
-        display: inline-block;
     }}
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --- 4. THE UI LAYOUT ---
 
