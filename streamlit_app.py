@@ -251,44 +251,55 @@ with col_left:
     """, unsafe_allow_html=True)
 
 with col_right:
-    # Right column now has a solid background from CSS for perfect readability
-    tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
-    
-    with tab_act:
-        chat_container = st.container(height=400)
-        with chat_container:
-            for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
+    # We wrap the tabs in a container and use a custom CSS class for the light background
+    st.markdown("""
+        <style>
+        /* This targets the specific container below */
+        .light-hub-bg {
+            background-color: rgba(240, 242, 246, 0.98);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #ccc;
+        }
+        /* Force dark text inside this specific hub */
+        .light-hub-bg p, .light-hub-bg span, .light-hub-bg div {
+            color: #1A1C23 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Creating the 'Hardcoded' background area
+    with st.container():
+        st.markdown('<div class="light-hub-bg">', unsafe_allow_html=True)
         
-        # In the main loop:
+        tab_act, tab_inv, tab_obj = st.tabs(["ACTIVITY", "GEAR", "MISSION"])
+        
+        with tab_act:
+            chat_container = st.container(height=400)
+            with chat_container:
+                for msg in st.session_state.messages:
+                    st.chat_message(msg["role"]).write(msg["content"])
+            
             if prompt := st.chat_input("What is your move?"):
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                # 1. Get raw response from Gemini
                 raw_response = get_dm_response(prompt)
-                
-                # 2. Parse tags and update HUD/Inventory/Objectives
                 clean_narrative = process_dm_output(raw_response)
-
-                # TEMPORARY TEST LINE (Add after clean_narrative =)
-                if "bob" in prompt.lower():
-                    st.session_state.current_overlay_image = "npc_bob_barkeep.png"
-                
-                # 3. Add only the narrative to the chat history
                 st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
                 st.rerun()
 
-    with tab_inv:
-        st.write("### Your Gear")
-        if not st.session_state.inventory:
-            st.info("No items carried.")
-        for item in st.session_state.inventory:
-            st.write(f"• {item['name']} ({item['weight']}kg)")
+        with tab_inv:
+            st.write("### Your Gear")
+            if not st.session_state.inventory:
+                st.info("No items carried.")
+            for item in st.session_state.inventory:
+                st.write(f"• {item['name']} ({item['weight']}kg)")
 
-    with tab_obj:
-        st.write("### Mission Intent")
-        for obj in st.session_state.objectives:
-            st.checkbox(obj['task'], value=obj['done'], disabled=True)
+        with tab_obj:
+            st.write("### Mission Intent")
+            for obj in st.session_state.objectives:
+                st.checkbox(obj['task'], value=obj['done'], disabled=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # THE PERSISTENCE TRIGGER (Manual Save)
 st.divider()
