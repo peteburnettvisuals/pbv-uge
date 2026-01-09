@@ -106,14 +106,25 @@ def get_dm_response(prompt):
     
     current_wp_id = st.session_state.current_waypoint
     wp_node = mission_script.find(f".//waypoint[@id='{current_wp_id}']")
-    loc_ref = wp_node.get('loc_ref')
-    loc_node = world_atlas.find(f".//location[@id='{loc_ref}']")
+    
+    # SAFETY CHECK: If waypoint or location is missing, use defaults
+    loc_name = "Unknown Wilds"
+    loc_desc = "A mysterious area."
+    mission_desc = "Continue your journey."
+
+    if wp_node is not None:
+        mission_desc = wp_node.find('desc').text if wp_node.find('desc') is not None else mission_desc
+        loc_ref = wp_node.get('loc_ref')
+        loc_node = world_atlas.find(f".//location[@id='{loc_ref}']")
+        if loc_node is not None:
+            loc_name = loc_node.get('name')
+            # Look for internal_desc instead of base_desc to match your latest XML
+            loc_desc = loc_node.find('internal_desc').text if loc_node.find('internal_desc') is not None else loc_desc
 
     sys_instr = f"""
     You are the Narrator for 'Warlock of Certain Death Mountain'.
-    
-    CURRENT LOCATION (World Atlas): {loc_node.get('name')} - {loc_node.find('base_desc').text if loc_node.find('base_desc') is not None else ""}
-    MISSION CONTEXT (Script): {wp_node.find('desc').text}
+    CURRENT LOCATION: {loc_name} - {loc_desc}
+    MISSION CONTEXT: {mission_desc}
     
     UI CONTROL PROTOCOL:
     You MUST use these tags to drive the UI. Do not show them to the player.
@@ -152,9 +163,11 @@ def package_save_state():
 # --- 2. DYNAMIC CSS CONFIGURATION ---
 bg_url = get_image_url(st.session_state.current_scene_image)
 
+st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
+
 st.markdown(f"""
     <style>
-    /* Full-screen background */
+    /* 1. Full-screen background */
     .stApp {{
         background-color: #000000;
         background-image: url("{bg_url}");
@@ -163,41 +176,34 @@ st.markdown(f"""
         background-attachment: fixed;
     }}
 
-    /* Transparent main container */
+    /* 2. Transparent main container */
     .main .block-container {{
         background-color: rgba(0, 0, 0, 0.0) !important;
         max-width: 95%;
         padding-top: 2rem;
     }}
     
-    /* SOLID RIGHT PANEL FIX 
-       Targets both the column and the inner vertical block 
+    /* 3. NEW ADDITION: FORCE RIGHT PANEL BG
+       We target the horizontal block's second child (the right column)
     */
-    [data-testid="column"]:nth-child(2) > div {{
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {{
         background: rgba(14, 17, 23, 0.98) !important;
         border: 1px solid #444;
         border-radius: 15px;
-        padding: 30px;
-        box-shadow: 0 10px 30px rgba(0,0,0,1);
+        padding: 30px !important;
         min-height: 80vh;
+        z-index: 1000;
     }}
 
-    /* Ensure text inside the panel is white */
-    [data-testid="column"]:nth-child(2) * {{
-        color: white !important;
+    /* 4. Ensure all text inside the right panel is white */
+    [data-testid="column"]:nth-child(2) p, 
+    [data-testid="column"]:nth-child(2) h3, 
+    [data-testid="column"]:nth-child(2) label,
+    [data-testid="column"]:nth-child(2) div {{
+        color: #FFFFFF !important;
     }}
 
-    /* Tab styling for high contrast */
-    .stTabs [data-baseweb="tab-list"] {{
-        background-color: #0e1117;
-        border-radius: 10px 10px 0 0;
-    }}
-    
-    .stTabs [data-baseweb="tab"] {{
-        background-color: transparent !important;
-    }}
-
-    /* Green HUD stats bar */
+    /* 5. Green HUD stats bar */
     .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -209,7 +215,7 @@ st.markdown(f"""
         margin-top: 20px;
     }}
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # --- 4. THE UI LAYOUT ---
 
