@@ -206,6 +206,31 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+st.markdown("""
+    <style>
+    /* ... existing background and layout CSS ... */
+
+    /* INCREASE TEXT SIZE IN INTERACTION COLUMN */
+    [data-testid="column"]:nth-child(2) p, 
+    [data-testid="column"]:nth-child(2) li,
+    [data-testid="column"]:nth-child(2) div {
+        font-size: 1.15rem !important; /* Larger body text */
+        line-height: 1.6 !important;   /* Better spacing between lines */
+    }
+
+    /* SPECIFICALLY TARGET CHAT MESSAGES */
+    .stChatMessage {
+        font-size: 1.2rem !important;
+    }
+
+    /* ENLARGE TAB LABELS */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- 4. THE UI LAYOUT (Twin-Column) ---
 
 # Split screen: Left (Visuals) | Right (Interaction)
