@@ -168,12 +168,14 @@ st.markdown(f"""
     }}
     
     /* Styles the right-hand Hub (Activity/Inventory) */
-    [data-testid="stVerticalBlock"] > div:nth-child(2) [data-testid="stHorizontalBlock"] > div:nth-child(2) {{
-        background: rgba(255, 255, 255, 0.9);
-        color: #000000;
-        border-radius: 20px 20px 0 0;
-        padding: 20px;
-    }}
+    /* Updated selector to target the right-hand column container */
+    [data-testid="column"]:nth-child(2) {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000000;
+    border-radius: 20px;
+    padding: 25px;
+    margin-top: 20px;
+}
 
     /* Style for the green HUD stats */
     .stats-overlay {{
