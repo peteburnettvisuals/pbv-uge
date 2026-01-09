@@ -8,24 +8,47 @@ import datetime
 # --- 1. CORE POC CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
-# CSS: Implementing the "Cinematic" look
-st.markdown("""
+# Generate the live URL for the current scene
+bg_url = get_image_url(st.session_state.current_scene_image)
+
+st.markdown(f"""
     <style>
-    .stApp { background-color: #0E1117; color: #FFFFFF; }
-    /* Cinematic Background Container */
-    .cinematic-container {
-        border: 2px solid #333;
-        border-radius: 10px;
-        padding: 10px;
-        background: #1A1C23;
-    }
-    .stats-overlay {
+    /* 1. Set the background image to the entire App container */
+    .stApp {{
+        background-image: url("{bg_url}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        color: #FFFFFF;
+    }}
+
+    /* 2. Make the main content area transparent so the image shows through */
+    .main .block-container {{
+        background-color: rgba(0, 0, 0, 0.4); /* Subtle dark tint for readability */
+        padding: 2rem;
+        border-radius: 20px;
+    }}
+
+    /* 3. Style the HUD Overlay */
+    .stats-overlay {{
         color: #00FF41;
         font-family: 'Courier New', Courier, monospace;
-        background: rgba(0,0,0,0.6);
-        padding: 10px;
+        background: rgba(0,0,0,0.8);
+        padding: 15px;
+        border: 1px solid #00FF41;
         border-radius: 5px;
-    }
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 100;
+    }}
+    
+    /* 4. Ensure tabs and chat stand out against the background */
+    [data-testid="stExpander"], .stTabs {{
+        background: rgba(26, 28, 35, 0.9) !important;
+        border-radius: 10px;
+        padding: 10px;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
