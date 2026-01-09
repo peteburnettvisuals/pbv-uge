@@ -162,10 +162,9 @@ st.markdown(f"""
         background-attachment: fixed;
     }}
 
-    /* Removes the white/dark 'box' around the content to show the background */
     .main .block-container {{
-        background-color: rgba(0, 0, 0, 0.0); 
-        margin-top: 20px;
+        background-color: rgba(0, 0, 0, 0.0) !important; /* Forces 100% transparency */
+        margin-top: 10px;
     }}
     
     /* Styles the right-hand Hub (Activity/Inventory) */
@@ -203,18 +202,16 @@ with col_head_2:
 col_left, col_right = st.columns([2, 1], gap="medium")
 
 with col_left:
-    # We no longer render the background here because the CSS (stApp) handles it.
-    # This div allows us to keep the overlay and stats in the correct column.
-    st.markdown('<div class="cinematic-container" style="height: 400px; background: transparent;">', unsafe_allow_html=True)
+    # We use an empty container to preserve space for overlays
+    st.markdown('<div style="height: 100px;"></div>', unsafe_allow_html=True)
     
-    # OVERLAY LOGIC: Characters appear here, floating over the background
+    # OVERLAY LOGIC: This renders the NPC on top of the mountain background
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
-        st.image(overlay_url, width=300) 
+        # Use a fixed width to keep the character silhouette appropriately sized
+        st.image(overlay_url, width=400) 
         
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # STATS BAR (Pinned to the bottom of the left column area)
+    # STATS BAR (The green HUD from your mockup)
     total_weight = sum(item['weight'] for item in st.session_state.inventory)
     st.markdown(f"""
         <div class="stats-overlay">
