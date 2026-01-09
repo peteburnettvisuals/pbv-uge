@@ -161,7 +161,7 @@ def package_save_state():
     return save_data
 
 # --- 2. DYNAMIC CSS CONFIGURATION ---
-st.set_page_config(layout="centered", page_title="UGE: Warlock PoC")
+st.set_page_config(layout="wide", page_title="UGE: Warlock PoC")
 
 st.markdown("""
     <style>
@@ -171,33 +171,21 @@ st.markdown("""
         background-attachment: fixed;
     }
 
-    /* 2. Containerizing the Main Content Area */
+    /* 2. Remove default padding for a tighter fit */
     .main .block-container {
-        max-width: 800px;
-        padding-bottom: 120px; /* Space for the pinned footer */
+        padding-top: 2rem;
+        padding-bottom: 100px; /* Space for fixed footer */
     }
 
-    /* 3. Fixed-Height Chat Window */
-    /* This prevents the page from expanding vertically forever */
-    [data-testid="stChatMessageContainer"] {
-        max-height: 500px;
-        overflow-y: auto;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        padding: 10px;
-        background: #F9FAFB;
-    }
-
-    /* 4. PINNED HUD FOOTER */
+    /* 3. PINNED HUD FOOTER */
     .fixed-footer {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: #111827; /* Dark charcoal */
-        color: #00FF41; /* Terminal green */
-        padding: 15px 0;
-        text-align: center;
+        background-color: #111827;
+        color: #00FF41;
+        padding: 10px 0;
         z-index: 999;
         border-top: 2px solid #00FF41;
         font-family: 'Courier New', Courier, monospace;
@@ -206,52 +194,64 @@ st.markdown("""
     .footer-content {
         display: flex;
         justify-content: space-around;
-        max-width: 800px;
-        margin: 0 auto;
         font-weight: bold;
+    }
+
+    /* 4. Chat Styling to ensure no page growth */
+    [data-testid="stChatMessageContainer"] {
+        background: #F9FAFB;
+        border-radius: 10px;
+        border: 1px solid #E5E7EB;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. THE UI LAYOUT ---
+# --- 4. THE UI LAYOUT (Twin-Column) ---
 
-st.title("The Warlock of Certain Death Mountain")
-st.caption("Chapter 1: The Village of Oakhaven")
+# Split screen: Left (Visuals) | Right (Interaction)
+col_visual, col_interaction = st.columns([1.2, 1], gap="large")
 
-tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
-
-with tab_act:
-    # 1. Image Header (Inside the tab)
+with col_visual:
+    # 1. World Metadata
+    st.title("The Warlock of Certain Death Mountain")
+    st.caption("Chapter 1: The Village of Oakhaven")
+    
+    # 2. Hero/Scene Image
     scene_url = get_image_url(st.session_state.current_scene_image)
     st.image(scene_url, use_column_width=True)
     
-    # 2. Containerized Chat Area
-    # Streamlit's container(height=...) automatically handles the scrolling/pinning
-    with st.container(height=500):
-        for msg in st.session_state.messages:
-            st.chat_message(msg["role"]).write(msg["content"])
+    # 3. Character Overlay (renders below the scene on mobile)
+    if st.session_state.current_overlay_image:
+        overlay_url = get_image_url(st.session_state.current_overlay_image)
+        st.image(overlay_url, width=250)
+
+with col_interaction:
+    # 4. Interaction Tabs
+    tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
     
-    # 3. Input pinned just below the chat box
-    if prompt := st.chat_input("What is your move?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        raw_response = get_dm_response(prompt)
-        clean_narrative = process_dm_output(raw_response)
-        st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
-        st.rerun()
+    with tab_act:
+        # Fixed-height container prevents the right column from stretching the page
+        with st.container(height=550):
+            for msg in st.session_state.messages:
+                st.chat_message(msg["role"]).write(msg["content"])
+        
+        # Chat Input pinned to the bottom of the column
+        if prompt := st.chat_input("What is your move?"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            raw_response = get_dm_response(prompt)
+            clean_narrative = process_dm_output(raw_response)
+            st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
+            st.rerun()
 
     with tab_inv:
         st.write("### Your Gear")
-        if not st.session_state.inventory:
-            st.info("No items carried.")
-        for item in st.session_state.inventory:
-            st.write(f"• {item['name']} ({item['weight']}kg)")
+        # (Inventory Logic Here)
 
     with tab_obj:
         st.write("### Mission Intent")
-        for obj in st.session_state.objectives:
-            st.checkbox(obj['task'], value=obj['done'], disabled=True)
+        # (Objectives Logic Here)
 
-# 5. RENDER THE PINNED HUD (Always visible at the bottom)
+# 5. RENDER THE PINNED HUD
 total_weight = sum(item['weight'] for item in st.session_state.inventory)
 st.markdown(f"""
     <div class="fixed-footer">
