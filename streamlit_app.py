@@ -72,51 +72,35 @@ def process_dm_output(raw_text):
     return re.sub(r"\[.*?\]", "", raw_text).strip()
 
 def get_dm_response(prompt):
-    """ULE-Style Stateful Engine."""
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # Use 2.0-flash-exp for better instruction following as per ULE pattern
     model = genai.GenerativeModel('gemini-2.0-flash-exp', 
-                                 generation_config={"temperature": 0.3}) # Lower temp for 'On-Book' consistency
+                                 generation_config={"temperature": 0.4}) # Slightly higher temp for "Inventive" prose
 
     world_atlas, mission_script = load_poc_assets()
-    wp_node = mission_script.find(f".//waypoint[@id='{st.session_state.current_waypoint}']")
-    
-    # Data Defaults
-    loc_name, loc_desc, mission_desc = "Unknown Wilds", "A mysterious area.", "Continue your journey."
+    wp = mission_script.find(f".//waypoint[@id='{st.session_state.current_waypoint}']")
+    loc = world_atlas.find(f".//location[@id='{wp.get('loc_ref')}']")
 
-    if wp_node is not None:
-        mission_desc = wp_node.find('desc').text if wp_node.find('desc') is not None else mission_desc
-        loc_ref = wp_node.get('loc_ref')
-        loc_node = world_atlas.find(f".//location[@id='{loc_ref}']")
-        if loc_node is not None:
-            loc_name = loc_node.get('name')
-            loc_desc = loc_node.find('internal_desc').text if loc_node.find('internal_desc') is not None else ""
-
-    # Initialize session if it doesn't exist (The ULE Heart Transplant - Evolved)
+    # Initialize session if it doesn't exist (THE ULE TRANSPLANT)
     if st.session_state.chat_session is None:
         sys_instr = f"""
-        ROLE: You are the Master Narrator for 'Warlock of Certain Death Mountain'. 
-        Your tone is atmospheric, suspenseful, and immersive. You are the player's eyes and ears.
-
-        CANONICAL SOURCE OF TRUTH (XML DATA):
-        - CURRENT LOCATION: {loc_name}
-        - CORE GEOGRAPHY: {loc_desc}
-        - MISSION CONTEXT: {mission_desc}
-
-        NARRATIVE BALANCE PROTOCOL:
-        1. ATMOSPHERIC CREATIVITY: You ARE encouraged to be inventive with sensory details—the smell of the mountain air, the flicker of shadows, or the distant sound of thunder—provided they don't change the map or add new structures.
-        2. CANONICAL FOCUS: You MUST stay "on-book" for Locations, NPCs, and Quest Items. If the player asks to enter a shop not in the Atlas, describe it as "shuttered" or "ominously silent."
-        3. NO SELF-PLAY: Never describe the player's internal feelings or actions. Always ask "What do you do?"
-        4. INTERACTIVE BRANCHING: Always provide 3 immersive, numbered options (1, 2, 3) that flow naturally from your description.
-        5. UI SIGNALING: Silently use tags: [SET_SCENE: ID], [SET_OVERLAY: filename], [GIVE_ITEM: Name: Weight], [OBJ_COMPLETE: Index].
-        """
+        ROLE: You are the Master Narrator. Your tone is genial, atmospheric, and highly immersive.
         
-        # Start the session using the ULE logic pattern
+        SOURCE OF TRUTH (XML DATA):
+        - LOCATION: {loc.get('name')}
+        - DESCRIPTION: {loc.find('internal_desc').text}
+        - MISSION: {wp.find('desc').text}
+
+        INTUITION-BASED RULES:
+        1. NO LISTS: Never provide a/b/c options. Instead, describe the world so vividly that the player's next move feels natural. Ask them what they want to do.
+        2. ENCOURAGE INTUITION: If the player is stuck, describe a feeling—a chill down their spine, a smell on the wind—that subtly hints at canonical points of interest in the XML.
+        3. ON-BOOK FLAVOR: You are free to invent the "mist" or "distant thunder," but do not invent new NPCs or buildings. If they aren't in the XML, they aren't there.
+        4. FIRST TURN: If the user says 'start', provide a cinematic "Welcome" introduction to Oakhaven that sets the stakes and ends with a prompt for their first move.
+        5. UI SIGNALING: Use [SET_OVERLAY: filename] when the player interacts with a canonical NPC.
+        """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
-    # Send the user prompt through the persistent session
+    # Standard interaction
     response = st.session_state.chat_session.send_message(prompt)
     return response.text
 
@@ -142,17 +126,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 4. THE UI LAYOUT (Twin-Column) ---
+
+if not st.session_state.messages:
+    with st.spinner("The Narrator is preparing the stage..."):
+        # We send a hidden 'start' prompt to trigger the first turn rules
+        raw_response = get_dm_response("start")
+        clean_narrative = process_dm_output(raw_response)
+        st.session_state.messages.append({"role": "assistant", "content": clean_narrative})
+        st.rerun()
+
 col_visual, col_interaction = st.columns([1.2, 1], gap="large")
 
 with col_visual:
     st.title("The Warlock of Certain Death Mountain")
     st.caption("Chapter 1: The Village of Oakhaven")
+    
+    # 21:9 Scene Image (Pinned)
     scene_url = get_image_url(st.session_state.current_scene_image)
     st.image(scene_url, use_column_width=True)
     
+    # CHARACTER PORTRAIT (ULE Pattern)
     if st.session_state.current_overlay_image:
         overlay_url = get_image_url(st.session_state.current_overlay_image)
-        st.image(overlay_url, width=300, caption="Character Interaction")
+        # We wrap this in a container to give it some separation from the landscape
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.image(overlay_url, width=400, caption="Current Interaction")
 
 with col_interaction:
     tab_act, tab_inv, tab_obj = st.tabs(["Activity", "Inventory", "Objectives"])
