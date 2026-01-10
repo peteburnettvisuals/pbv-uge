@@ -1,66 +1,39 @@
-/* style.css - Complete Tactical Overhaul */
+/* style.css - Final Constraint Overhaul */
 
-/* 1. GLOBAL LAYOUT: Centering the Main Theatre */
+/* 1. GLOBAL: Centering the overall page content */
 .stApp .main .block-container {
-    max-width: 800px !important; /* Locks the "Dossier" width */
-    padding-top: 2rem !important;
-    margin: auto !important; /* Centers the column on desktop */
-}
-
-/* 2. CHAT INPUT: Keeping the UI aligned */
-[data-testid="stChatInput"] {
     max-width: 800px !important;
     margin: auto !important;
-    left: 0;
-    right: 0;
+    padding-top: 1rem !important;
 }
 
-/* 3. SIDEBAR HUD: Imperial Green on Deep Black */
+/* 2. CONTAINER SPECIFIC: Constraining the scrollable chat area */
+/* This targets the specific container created by st.container(height=650) */
+[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"] {
+    max-width: 800px !important;
+    margin: auto !important;
+}
+
+/* 3. IMAGES: Forcing images to respect the column and not bleed out */
+[data-testid="stImage"] img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+/* 4. SIDEBAR HUD: High-visibility Imperial Green */
 [data-testid="stSidebar"] {
-    background-color: #0b0f19 !important; /* Deep tactical black */
-    color: #00FF41 !important;
+    background-color: #0b0f19 !important;
     border-right: 2px solid #00FF41;
 }
 
-/* Force all sidebar text to stay readable/themed */
-[data-testid="stSidebar"] h1, 
-[data-testid="stSidebar"] h2, 
-[data-testid="stSidebar"] h3, 
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
-[data-testid="stSidebar"] label {
+[data-testid="stSidebar"] * {
     color: #00FF41 !important;
 }
 
-/* 4. CHAT BUBBLES: Scaling and Spacing */
-[data-testid="stChatMessageContent"] p {
-    font-size: 1.3rem !important;
-    line-height: 1.7 !important;
-}
-
-/* 5. MOBILE RESPONSIVENESS: Automatic Failover */
-@media (max-width: 800px) {
-    .stApp .main .block-container {
-        max-width: 100% !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-}
-
-/* 1. Target the specific scrollable container used for the chat */
-[data-testid="stChatMessageContainer"] {
+/* 5. INPUT BOX: Center-aligning the tactical input */
+[data-testid="stChatInput"] {
     max-width: 800px !important;
-    margin: auto !important;
-}
-
-/* 2. Target the border/box around the chat container */
-.st-emotion-cache-16idsys { 
-    max-width: 800px !important;
-    margin: auto !important;
-}
-
-/* 3. Ensure the overall block container doesn't stretch everything else */
-.main .block-container {
-    max-width: 850px !important;
     margin: auto !important;
 }
