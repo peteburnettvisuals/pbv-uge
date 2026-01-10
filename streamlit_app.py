@@ -88,6 +88,7 @@ def get_dm_response(prompt):
         5. NO NODES: This is an open-world sandbox. Handle creative player moves by tethering them back to the sandbox lore.
         6. GUARDRAILS: You must strictly enforce the chapter constraints. If the operative attempts to leave Oakhaven or scale the mountain without meeting all objectives, describe a lethal obstacle or impediment that forces them back. Be the Handler—tell them they aren't ready.
         7. INVENTORY UPDATES: If the operative successfully acquires a significant item mentioned in the sandbox (like the Orichalcum dagger), append the tag [ADD_ITEM: Item Name] to your response.
+        8. OPERATIONAL DISCIPLINE: If the operative performs actions that are counter-productive, absurd, or likely to draw unwanted attention (like mooning or twerking), respond with a scolding 'Handler' tone and append the tag [MANA_BURN: 5].
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
