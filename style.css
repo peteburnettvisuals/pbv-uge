@@ -1,0 +1,33 @@
+/* style.css */
+:root {
+    --primary-green: #00FF41;
+    --background-dark: #111827;
+    --text-jumbo: 1.4rem;
+}
+
+/* Constrain the main chat column */
+.stApp .main .block-container {
+    max-width: 750px !important;
+    padding-top: 2rem !important;
+    margin: auto;
+}
+
+/* Sidebar HUD Styling */
+[data-testid="stSidebar"] {
+    background-color: var(--background-dark) !important;
+    border-right: 2px solid var(--primary-green);
+}
+
+/* Chat Message Scaling */
+[data-testid="stChatMessageContent"] p {
+    font-size: var(--text-jumbo) !important;
+    line-height: 1.8 !important;
+}
+
+/* High-Contrast fallbacks for Dark Mode users */
+@media (prefers-color-scheme: dark) {
+    [data-testid="stChatMessage"] {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(0, 255, 65, 0.2);
+    }
+}

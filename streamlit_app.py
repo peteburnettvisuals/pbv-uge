@@ -19,51 +19,19 @@ if "mana" not in st.session_state:
         "player_name": "Recruit" # Default player name for HUD
     })
 
-# --- 1. UPDATED CSS ---
-st.markdown("""
-    <style>
-    /* White to Gray Gradient */
-    .stApp { background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%); }
-
-    /* Centered, narrower chat column for better readability */
-    .main .block-container {
-        max-width: 700px !important; 
-        margin: auto;
-        padding-top: 1rem;
-    }
-
-    /* Sidebar Styling */
-    [data-testid="stSidebar"] {
-        background-color: #111827 !important;
-        color: #00FF41 !important;
-        border-right: 2px solid #00FF41;
-    }
-
-    /* Remove the default top padding of the main area */
-    [data-testid="stHeader"] { display: none; }
-    
-    /* Style the chat bubbles */
-    [data-testid="stChatMessage"] {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        margin-bottom: 0.5rem;
-    }
-    
-    /* Chapter text in Sidebar */
-    .sidebar-chapter {
-        color: #9CA3AF !important;
-        font-size: 0.9rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 
 # --- UTILITY FUNCTIONS ---
 BUCKET_NAME = "uge-repository-cu32" # Your GCS bucket name
+
+def local_css(file_name):
+    try:
+        with open(file_name) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        # Fallback if the file is missing during deployment
+        st.warning("Tactical stylesheet missing. Reverting to default comms.")
+
+local_css("style.css")
 
 @st.cache_resource
 def get_gcs_client():
@@ -126,21 +94,23 @@ def get_dm_response(prompt):
 
 # --- UI LAYOUT (Single Column + Sidebar HUD) ---
 
-# Sidebar: The Black Raven HUD
+# --- UI LAYOUT (Single Column + Sidebar HUD) ---
+
 with st.sidebar:
-    # Safe Logo Check
+    # 1. Branding
     try:
         st.image("black_raven_logo.png", use_container_width=True)
     except:
         st.subheader("🦅 BLACK RAVEN HQ")
 
-    # Sidebaring the Chapter (moved from main heading)
+    # 2. Status & Chapter
     st.markdown(f'<div class="sidebar-chapter">Sector: {st.session_state.current_location_desc}</div>', unsafe_allow_html=True)
-    
     st.metric("MANA SIGNATURE", f"{st.session_state.mana}%")
     st.progress(st.session_state.mana / 100)
     
     st.divider()
+    
+    # 3. Gear & Mission
     st.subheader("🎒 TACTICAL GEAR")
     for item in st.session_state.inventory:
         st.write(f"• {item}")
@@ -161,10 +131,6 @@ with st.sidebar:
     except Exception as e:
         st.write(f"Error loading objectives: {e}")
 
-
-# Main Content Area: The Narrative Theatre
-st.title("THE WARLOCK OF CERTAIN DEATH MOUNTAIN")
-st.caption(f"Chapter {st.session_state.current_chapter_id}: {st.session_state.current_location_desc}")
 
 # Chat Container - Fixed height with scrolling
 chat_container = st.container(height=650, border=True)
