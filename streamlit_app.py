@@ -45,6 +45,27 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background-color: #00FF41 !important;
     }
+            /* Create a focused central column for the chat stream */
+    .main .block-container {
+        max-width: 900px; /* Constrains the width for better readability */
+        margin: auto;
+        padding-top: 2rem;
+    }
+
+    /* Ensure in-stream images stay sharp and don't overwhelm the text */
+    [data-testid="stImage"] img {
+        border-radius: 10px;
+        border: 1px solid #4B5563;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-bottom: 10px;
+    }
+    
+    /* Style the chat bubbles for better separation in the column */
+    [data-testid="stChatMessage"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        margin-bottom: 1rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
