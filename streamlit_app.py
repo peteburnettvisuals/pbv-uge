@@ -19,52 +19,44 @@ if "mana" not in st.session_state:
         "player_name": "Recruit" # Default player name for HUD
     })
 
-# --- CSS STYLING ---
+# --- 1. UPDATED CSS ---
 st.markdown("""
     <style>
-    /* White to Gray Gradient Background */
+    /* White to Gray Gradient */
     .stApp { background: linear-gradient(180deg, #FFFFFF 0%, #D1D5DB 100%); }
-    
-    /* Jumbo Chat Text for mobile/desktop readability */
-    [data-testid="stChatMessageContent"] p {
-        font-size: 1.4rem !important;
-        line-height: 1.7 !important;
-    }
-    
-    /* Sidebar Stat Styling (The HUD) */
-    [data-testid="stSidebar"] {
-        background-color: #111827 !important; /* Dark background */
-        color: #00FF41 !important; /* Cyberpunk green text */
-        border-right: 2px solid #00FF41; /* Matching border */
-    }
-    /* Ensure sidebar elements inherit color */
-    [data-testid="stSidebar"] * {
-        color: #00FF41 !important;
-    }
-    /* Specific styling for progress bar in sidebar if needed */
-    .stProgress > div > div > div > div {
-        background-color: #00FF41 !important;
-    }
-            /* Create a focused central column for the chat stream */
+
+    /* Centered, narrower chat column for better readability */
     .main .block-container {
-        max-width: 900px; /* Constrains the width for better readability */
+        max-width: 700px !important; 
         margin: auto;
-        padding-top: 2rem;
+        padding-top: 1rem;
     }
 
-    /* Ensure in-stream images stay sharp and don't overwhelm the text */
-    [data-testid="stImage"] img {
-        border-radius: 10px;
-        border: 1px solid #4B5563;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        margin-bottom: 10px;
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #111827 !important;
+        color: #00FF41 !important;
+        border-right: 2px solid #00FF41;
     }
+
+    /* Remove the default top padding of the main area */
+    [data-testid="stHeader"] { display: none; }
     
-    /* Style the chat bubbles for better separation in the column */
+    /* Style the chat bubbles */
     [data-testid="stChatMessage"] {
         background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        margin-bottom: 1rem;
+        border-radius: 12px;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Chapter text in Sidebar */
+    .sidebar-chapter {
+        color: #9CA3AF !important;
+        font-size: 0.9rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -136,22 +128,25 @@ def get_dm_response(prompt):
 
 # Sidebar: The Black Raven HUD
 with st.sidebar:
+    # Safe Logo Check
     try:
-        st.image("black_raven_logo.png")
+        st.image("black_raven_logo.png", use_container_width=True)
     except:
-        st.write("🦅 **BLACK RAVEN HQ**") # Text fallback if image is missing
-    st.title("🦅 BLACK RAVEN HUD")
-    st.write(f"**OPERATIVE:** {st.session_state.player_name}")
+        st.subheader("🦅 BLACK RAVEN HQ")
+
+    # Sidebaring the Chapter (moved from main heading)
+    st.markdown(f'<div class="sidebar-chapter">Sector: {st.session_state.current_location_desc}</div>', unsafe_allow_html=True)
+    
     st.metric("MANA SIGNATURE", f"{st.session_state.mana}%")
-    st.progress(st.session_state.mana / 100) # Mana as a progress bar
+    st.progress(st.session_state.mana / 100)
+    
     st.divider()
     st.subheader("🎒 TACTICAL GEAR")
-    if not st.session_state.inventory:
-        st.write("No gear equipped.")
     for item in st.session_state.inventory:
         st.write(f"• {item}")
+    
     st.divider()
-    st.subheader("🎯 CURRENT OBJECTIVES")
+    st.subheader("🎯 OBJECTIVES")
     # Display objectives from current chapter
     chapter_id = st.session_state.current_chapter_id
     try:
