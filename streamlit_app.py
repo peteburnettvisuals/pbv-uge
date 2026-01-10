@@ -87,11 +87,29 @@ def get_dm_response(prompt):
            - STARTING ASSET: Use [IMG: oakhaven.jpg] (the map with larger labels) for the first briefing.
         5. NO NODES: This is an open-world sandbox. Handle creative player moves by tethering them back to the sandbox lore.
         6. GUARDRAILS: You must strictly enforce the chapter constraints. If the operative attempts to leave Oakhaven or scale the mountain without meeting all objectives, describe a lethal obstacle or impediment that forces them back. Be the Handler—tell them they aren't ready.
+        7. INVENTORY UPDATES: If the operative successfully acquires a significant item mentioned in the sandbox (like the Orichalcum dagger), append the tag [ADD_ITEM: Item Name] to your response.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
     response_text = st.session_state.chat_session.send_message(prompt).text
+
+    # --- INVENTORY LOGIC ---
+    # Look for the acquisition tag
+    item_match = re.search(r"\[ADD_ITEM:\s*([^\]]+)\]", response_text)
+    if item_match:
+        new_item = item_match.group(1).strip()
+        if new_item not in st.session_state.inventory:
+            st.session_state.inventory.append(new_item)
+            st.toast(f"EQUIPMENT ACQUIRED: {new_item}")
+
+    # --- MANA BURN LOGIC ---
+    # Look for the penalty tag
+    mana_match = re.search(r"\[MANA_BURN:\s*(\d+)\]", response_text)
+    if mana_match:
+        penalty = int(mana_match.group(1))
+        st.session_state.mana = max(0, st.session_state.mana - penalty)
+        st.toast(f"SIGNAL COMPROMISED: -{penalty}% Mana (Anti-Social Conduct)")
 
     # Check if the AI thinks the chapter is over
     if "[CHAPTER_COMPLETE]" in response_text:
