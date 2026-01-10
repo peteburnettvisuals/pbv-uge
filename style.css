@@ -1,33 +1,48 @@
-/* style.css */
-:root {
-    --primary-green: #00FF41;
-    --background-dark: #111827;
-    --text-jumbo: 1.4rem;
-}
+/* style.css - Complete Tactical Overhaul */
 
-/* Constrain the main chat column */
+/* 1. GLOBAL LAYOUT: Centering the Main Theatre */
 .stApp .main .block-container {
-    max-width: 750px !important;
+    max-width: 800px !important; /* Locks the "Dossier" width */
     padding-top: 2rem !important;
-    margin: auto;
+    margin: auto !important; /* Centers the column on desktop */
 }
 
-/* Sidebar HUD Styling */
+/* 2. CHAT INPUT: Keeping the UI aligned */
+[data-testid="stChatInput"] {
+    max-width: 800px !important;
+    margin: auto !important;
+    left: 0;
+    right: 0;
+}
+
+/* 3. SIDEBAR HUD: Imperial Green on Deep Black */
 [data-testid="stSidebar"] {
-    background-color: var(--background-dark) !important;
-    border-right: 2px solid var(--primary-green);
+    background-color: #0b0f19 !important; /* Deep tactical black */
+    color: #00FF41 !important;
+    border-right: 2px solid #00FF41;
 }
 
-/* Chat Message Scaling */
+/* Force all sidebar text to stay readable/themed */
+[data-testid="stSidebar"] h1, 
+[data-testid="stSidebar"] h2, 
+[data-testid="stSidebar"] h3, 
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label {
+    color: #00FF41 !important;
+}
+
+/* 4. CHAT BUBBLES: Scaling and Spacing */
 [data-testid="stChatMessageContent"] p {
-    font-size: var(--text-jumbo) !important;
-    line-height: 1.8 !important;
+    font-size: 1.3rem !important;
+    line-height: 1.7 !important;
 }
 
-/* High-Contrast fallbacks for Dark Mode users */
-@media (prefers-color-scheme: dark) {
-    [data-testid="stChatMessage"] {
-        background-color: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(0, 255, 65, 0.2);
+/* 5. MOBILE RESPONSIVENESS: Automatic Failover */
+@media (max-width: 800px) {
+    .stApp .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 }

@@ -92,7 +92,6 @@ def get_dm_response(prompt):
 
     return st.session_state.chat_session.send_message(prompt).text
 
-# --- UI LAYOUT (Single Column + Sidebar HUD) ---
 
 # --- UI LAYOUT (Single Column + Sidebar HUD) ---
 
@@ -161,7 +160,7 @@ with chat_container:
                     # Display text parts
                     st.write(part.strip())
 
-# Chat Input at the bottom of the main column
+# --- CHAT INPUT (Pinned at bottom, but constrained by style.css) ---
 if prompt := st.chat_input("Operative, your move?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     response = get_dm_response(prompt)
