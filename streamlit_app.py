@@ -84,7 +84,7 @@ def get_dm_response(prompt):
            - Good: "Greeb Snelling runs the Rusted Tankard. He's a veteran; might be worth seeing what he's picked up over the years."
         3. INTUITION OVER LISTS: Use environmental cues and tactical advice to suggest moves. Never use a/b/c menus.
         4. ASSET DEPLOYMENT: Use the [IMG: filename.jpg] tag ONLY when the player arrives at or looks directly at a canonical location/NPC. 
-           - STARTING ASSET: Use [IMG: oakhaven_map.jpg] (the map with larger labels) for the first briefing.
+           - STARTING ASSET: Use [IMG: oakhaven.jpg] (the map with larger labels) for the first briefing.
         5. NO NODES: This is an open-world sandbox. Handle creative player moves by tethering them back to the sandbox lore.
         6. GUARDRAILS: You must strictly enforce the chapter constraints. If the operative attempts to leave Oakhaven or scale the mountain without meeting all objectives, describe a lethal obstacle or impediment that forces them back. Be the Handler—tell them they aren't ready.
         """
@@ -166,7 +166,7 @@ with chat_container:
                     img_filename = part[len("[IMG:"): -1].strip()
                     img_url = get_image_url(img_filename)
                     if img_url:
-                        st.image(img_url, width=500)
+                        st.image(img_url, width=650)
                 else:
                     # Display text parts
                     st.write(part.strip())
