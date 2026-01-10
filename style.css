@@ -46,3 +46,21 @@
         padding-right: 1rem !important;
     }
 }
+
+/* 1. Target the specific scrollable container used for the chat */
+[data-testid="stChatMessageContainer"] {
+    max-width: 800px !important;
+    margin: auto !important;
+}
+
+/* 2. Target the border/box around the chat container */
+.st-emotion-cache-16idsys { 
+    max-width: 800px !important;
+    margin: auto !important;
+}
+
+/* 3. Ensure the overall block container doesn't stretch everything else */
+.main .block-container {
+    max-width: 850px !important;
+    margin: auto !important;
+}
