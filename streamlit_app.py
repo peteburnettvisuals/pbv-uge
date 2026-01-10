@@ -73,33 +73,38 @@ def get_image_url(filename):
 # --- AI ENGINE LOGIC (ULE-Style Stateful) ---
 def get_dm_response(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # 2.0-flash-exp is perfect for following these complex persona constraints
     model = genai.GenerativeModel('gemini-2.0-flash-exp', generation_config={"temperature": 0.4})
 
-    # Load the Consolidated Game Sheet
+    # Load Game Sheet (XML Source of Truth)
     tree = ET.parse("game_sheet.xml")
     root = tree.getroot()
     
-    # 1. PULL CHAPTER 1 AS A BUNDLE (No more waypoint IDs)
+    # Context Injection: Pulling the Chapter Sandbox
     chapter_data = root.find(f"chapter[@id='{st.session_state.current_chapter_id}']")
-    locations = chapter_data.find("locations").text
-    npcs = chapter_data.find("npcs").text
-    objectives = chapter_data.find("main_objectives").text
+    locations = chapter_data.find("locations").text.strip()
+    npcs = chapter_data.find("npcs").text.strip()
+    objectives = chapter_data.find("main_objectives").text.strip()
 
     if st.session_state.chat_session is None:
         sys_instr = f"""
         {root.find("synopsis").text}
         
-        CHAPTER 1 SANDBOX:
+        CHAPTER {st.session_state.current_chapter_id} SANDBOX DATA:
         - LOCATIONS: {locations}
         - NPCs: {npcs}
-        - CURRENT OBJECTIVES: {objectives}
+        - OBJECTIVES: {objectives}
+        - LORE: {root.find("lore").text}
 
-        HANDLING RULES:
-        1. NO NODES: The player is in an open world. Do not look for 'nodes'. 
-        2. STARTING POINT: The Operative begins at the Gates of Oakhaven.
-        3. INTUITION: Suggest directions based on the Sandbox data. 
-        4. GUARDRAILS: If they leave Oakhaven, remind them the mountain is impassable without the gear mentioned in the objectives.
-        5. ASSETS: Deploy [IMG: filename.jpg] when they reach a canonical area.
+        OPERATIONAL PROTOCOLS (THE HANDLER):
+        1. PERSONA: You are the 'Handler' communicating via Echo Shard. Tone is laconic, businesslike, and dry (Agent K style).
+        2. INFOSEC (OBFUSCATION): Do not give away the game. You know the XML 'Dossier' on NPCs, but the operative (player) does not. 
+           - Bad: "Greeb has a special dagger you need."
+           - Good: "Greeb Snelling runs the Rusted Tankard. He's a veteran; might be worth seeing what he's picked up over the years."
+        3. INTUITION OVER LISTS: Use environmental cues and tactical advice to suggest moves. Never use a/b/c menus.
+        4. ASSET DEPLOYMENT: Use the [IMG: filename.jpg] tag ONLY when the player arrives at or looks directly at a canonical location/NPC. 
+           - STARTING ASSET: Use [IMG: oakhaven_map.jpg] (the map with larger labels) for the first briefing.
+        5. NO NODES: This is an open-world sandbox. Handle creative player moves by tethering them back to the sandbox lore.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
