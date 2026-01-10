@@ -86,11 +86,22 @@ def get_dm_response(prompt):
         4. ASSET DEPLOYMENT: Use the [IMG: filename.jpg] tag ONLY when the player arrives at or looks directly at a canonical location/NPC. 
            - STARTING ASSET: Use [IMG: oakhaven_map.jpg] (the map with larger labels) for the first briefing.
         5. NO NODES: This is an open-world sandbox. Handle creative player moves by tethering them back to the sandbox lore.
+        6. GUARDRAILS: You must strictly enforce the chapter constraints. If the operative attempts to leave Oakhaven or scale the mountain without meeting all objectives, describe a lethal obstacle or impediment that forces them back. Be the Handler—tell them they aren't ready.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
-    return st.session_state.chat_session.send_message(prompt).text
+    response_text = st.session_state.chat_session.send_message(prompt).text
+
+    # Check if the AI thinks the chapter is over
+    if "[CHAPTER_COMPLETE]" in response_text:
+        st.session_state.current_chapter_id = str(int(st.session_state.current_chapter_id) + 1)
+        st.session_state.current_location_desc = "Certain Death Mountain"
+        st.toast("MISSION OBJECTIVES MET: Moving to next sector.")
+        st.rerun()
+
+    # 3. ONLY return the text at the very end of the function
+    return response_text
 
 
 # --- UI LAYOUT (Single Column + Sidebar HUD) ---

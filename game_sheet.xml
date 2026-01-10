@@ -20,9 +20,10 @@
         <title>The Foot of Certain Death Mountain</title>
         <current_location>Village of Oakhaven</current_location>
         <main_objectives>Find a covert way into the mountain. Find a special weapon to defeat Malakor. Find something to defend yourself against spells with.</main_objectives>
+        <constraints>Don't let the player leave the village till he's satisfied the objectives.</constraints> 
         <locations>
             - Village of Oakhaven: [IMG: oakhaven.jpg] at the foot of Certain Death Mountain. 
-            - The Rusted Tankard: [IMG: tavern.jpg] A tavern.
+            - The Rusty Tankard: [IMG: tavern.jpg] A tavern.
             - Herb's Herbs: [IMG: apothecary.jpg] An apothecary store.
         </locations>
         <npcs>
