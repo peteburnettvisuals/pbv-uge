@@ -73,65 +73,47 @@ def get_image_url(filename):
 # --- AI ENGINE LOGIC (ULE-Style Stateful) ---
 def get_dm_response(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash-exp', 
-                                 generation_config={"temperature": 0.4}) # Slightly higher temp for creative flair
+    model = genai.GenerativeModel('gemini-2.0-flash-exp', generation_config={"temperature": 0.4})
 
-    # Load the entire game_sheet.xml
-    try:
-        tree = ET.parse("game_sheet.xml")
-        root = tree.getroot()
-    except FileNotFoundError:
-        st.error("Error: game_sheet.xml not found. Please ensure it's in the same directory.")
-        return "System error: Game data missing."
-
-    # Extract global context
-    synopsis = root.find("synopsis").text.strip() if root.find("synopsis") is not None else ""
-    lore = root.find("lore").text.strip() if root.find("lore") is not None else ""
+    # Load the Consolidated Game Sheet
+    tree = ET.parse("game_sheet.xml")
+    root = tree.getroot()
     
-    # Extract current chapter context
-    chapter_id = st.session_state.current_chapter_id
-    current_chapter = root.find(f"chapter[@id='{chapter_id}']")
-    
-    chapter_title = current_chapter.find("title").text.strip() if current_chapter.find("title") is not None else "Unknown Chapter"
-    main_objectives = current_chapter.find("main_objectives").text.strip() if current_chapter.find("main_objectives") is not None else "No objectives set."
-    locations = current_chapter.find("locations").text.strip() if current_chapter.find("locations") is not None else "No locations known."
-    npcs = current_chapter.find("npcs").text.strip() if current_chapter.find("npcs") is not None else "No NPCs known."
+    # 1. PULL CHAPTER 1 AS A BUNDLE (No more waypoint IDs)
+    chapter_data = root.find(f"chapter[@id='{st.session_state.current_chapter_id}']")
+    locations = chapter_data.find("locations").text
+    npcs = chapter_data.find("npcs").text
+    objectives = chapter_data.find("main_objectives").text
 
-    # Initialize session if it doesn't exist (THE ULE HEART TRANSPLANT)
     if st.session_state.chat_session is None:
         sys_instr = f"""
-        {synopsis}
+        {root.find("synopsis").text}
         
-        WORLD LORE:
-        {lore}
-        
-        CURRENT MISSION BRIEFING:
-        Chapter: {chapter_title}
-        Objectives: {main_objectives}
-        Known Locations: {locations}
-        Known NPCs: {npcs}
-        
-        INSTRUCTIONS:
-        1. PERSONALITY: You are the 'Handler' for Operative {st.session_state.player_name}. Your tone is laconic, dry, professional, and businesslike (think Agent K from Men in Black).
-        2. ECHO SHARD: You are communicating via an echo shard. Your messages are telepathic.
-        3. NO LISTS: Do not provide numbered or bulleted options. Suggest potential actions or observations via your 'handler intuition' or by posing rhetorical questions (e.g., "What do you see, operative?").
-        4. ASSET DEPLOYMENT: When you mention a canonical location or NPC for the first time in a new context, use the tag [IMG: filename.jpg] exactly as it appears in the XML within the 'Known Locations' or 'Known NPCs' sections. For example: "You are approaching the Village of Oakhaven. [IMG: oakhaven.jpg]".
-        5. ON-BOOK: You MUST stick to the provided XML lore for locations, NPCs, and key items. Do not invent new ones. If the operative attempts to interact with non-canonical elements, subtly redirect them to known elements or state that their intuition reveals nothing of interest in that direction.
-        6. INVENTORY AWARENESS: Consider the operative's current inventory when suggesting actions or responding to queries.
-        7. FIRST TURN: If the prompt is exactly "start_game_briefing", provide a compelling, Agent K-style initial briefing for Operative {st.session_state.player_name}, setting the scene at Oakhaven and prompting their first move, deploying the initial Oakhaven image.
+        CHAPTER 1 SANDBOX:
+        - LOCATIONS: {locations}
+        - NPCs: {npcs}
+        - CURRENT OBJECTIVES: {objectives}
+
+        HANDLING RULES:
+        1. NO NODES: The player is in an open world. Do not look for 'nodes'. 
+        2. STARTING POINT: The Operative begins at the Gates of Oakhaven.
+        3. INTUITION: Suggest directions based on the Sandbox data. 
+        4. GUARDRAILS: If they leave Oakhaven, remind them the mountain is impassable without the gear mentioned in the objectives.
+        5. ASSETS: Deploy [IMG: filename.jpg] when they reach a canonical area.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
-    # Send the user prompt through the persistent session
-    response = st.session_state.chat_session.send_message(prompt)
-    return response.text
+    return st.session_state.chat_session.send_message(prompt).text
 
 # --- UI LAYOUT (Single Column + Sidebar HUD) ---
 
 # Sidebar: The Black Raven HUD
 with st.sidebar:
-    st.image("black_raven_logo.png") # Placeholder for your logo
+    try:
+        st.image("black_raven_logo.png")
+    except:
+        st.write("🦅 **BLACK RAVEN HQ**") # Text fallback if image is missing
     st.title("🦅 BLACK RAVEN HUD")
     st.write(f"**OPERATIVE:** {st.session_state.player_name}")
     st.metric("MANA SIGNATURE", f"{st.session_state.mana}%")
