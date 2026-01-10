@@ -155,7 +155,7 @@ with chat_container:
                     img_filename = part[len("[IMG:"): -1].strip()
                     img_url = get_image_url(img_filename)
                     if img_url:
-                        st.image(img_url, use_column_width=True)
+                        st.image(img_url, width=500)
                 else:
                     # Display text parts
                     st.write(part.strip())

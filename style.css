@@ -37,3 +37,13 @@
     max-width: 800px !important;
     margin: auto !important;
 }
+
+/* style.css image constraint */
+[data-testid="stImage"] img {
+    max-width: 100% !important; /* Forces image to shrink on mobile */
+    height: auto !important;     /* Maintains aspect ratio */
+    display: block;
+    margin-left: 0;             /* Aligns image to the left of the chat bubble */
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 65, 0.3); /* Optional tactical green border */
+}
