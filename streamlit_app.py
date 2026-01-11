@@ -96,11 +96,28 @@ def get_dm_response(prompt):
 # --- UI LAYOUT ---
 with st.sidebar:
     st.header("🦅 BLACK RAVEN C2")
-    st.metric("NET STABILITY", f"{st.session_state.mana}%")
-    st.progress(st.session_state.mana / 100)
+    
+    # MISSION RESET BUTTON
+    if st.button("🚨 ABORT MISSION (RESET)"):
+        st.session_state.messages = []
+        st.session_state.chat_session = None
+        st.session_state.mana = 100
+        st.session_state.inventory = ["Command Terminal", "Echo Shard"]
+        st.rerun()
+
+    st.divider()
+    
+    # DYNAMIC SQUAD TRACKER
+    st.subheader("📍 DEPLOYMENT STATUS")
+    # We pull the last known location from the AI history or a state variable
+    # For now, we'll use a placeholder that you can update via regex in get_dm_response
+    cols = st.columns(3)
+    with cols[0]: st.caption("SAM"); st.write("🟢 Square")
+    with cols[1]: st.caption("DAVE"); st.write("🟡 Square")
+    with cols[2]: st.caption("MIKE"); st.write("🔵 Square")
     
     st.divider()
-    st.divider()
+    st.subheader("👥 SQUAD DOSSIERS")
     st.subheader("👥 SQUAD DOSSIERS")
     unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
     
