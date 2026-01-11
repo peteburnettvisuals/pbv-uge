@@ -66,7 +66,7 @@ h1, h2, h3, .stMetric, p {
 
 /* AMBER COMMAND TEXT */
 [data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important; 
+    color: #111111 !important; 
     font-size: 1.1rem !important;
     font-weight: bold !important;
     background-color: transparent !important;
