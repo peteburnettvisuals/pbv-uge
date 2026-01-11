@@ -199,7 +199,10 @@ with chat_container:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-if prompt := st.chat_input("Issue Commands (e.g., 'Sam, initiate bribe. Dave, cover her.')"):
+if prompt := st.chat_input("Issue Commands..."):
+    # Advance clock ONLY on user input
+    st.session_state.mission_time -= 1 
+    
     st.session_state.messages.append({"role": "user", "content": prompt})
     response = get_dm_response(prompt)
     st.session_state.messages.append({"role": "assistant", "content": response})

@@ -53,10 +53,8 @@ h1, h2, h3, .stMetric, p {
 
 /* 4. BLACKOUT: BOTTOM COMMAND SECTION */
 header, [data-testid="stHeader"], [data-testid="stFooter"], 
-[data-testid="stBottomBlockContainer"], div[data-testid="stChatInput"] {
+[data-testid="stBottomBlockContainer"], div[data-testid="stChatInput"], .stChatInput {
     background-color: #050805 !important;
 }
 
-/* 5. THE AMBER COMMAND CAPSULE */
-[data-testid="stChatInputContainer"] {
-    background-color: #020502 !
+/*
