@@ -1,12 +1,14 @@
-/* GUNDOG COMMAND & CONTROL HUD */
+/* ==========================================
+   GUNDOG COMMAND & CONTROL HUD
+   ========================================== */
 
+/* 1. GLOBAL UI & CRT EFFECTS */
 .stApp {
     background-color: #050805;
     color: #00FF41 !important;
     font-family: 'Courier New', Courier, monospace;
 }
 
-/* CRT Scanline Effect */
 .stApp::before {
     content: " ";
     display: block;
@@ -20,13 +22,12 @@
     opacity: 0.4;
 }
 
-/* Sidebar Phosphor Look */
+/* 2. SIDEBAR & GREEN PHOSPHOR ELEMENTS */
 [data-testid="stSidebar"] {
     background-color: #020502 !important;
     border-right: 1px solid #00FF41 !important;
 }
 
-/* Glowing Metrics & Progress */
 h1, h2, h3, .stMetric, p {
     color: #00FF41 !important;
     text-shadow: 0 0 10px #00FF41;
@@ -37,7 +38,7 @@ h1, h2, h3, .stMetric, p {
     box-shadow: 0 0 15px #00FF41;
 }
 
-/* MISSION CLOCK: SAFETY ORANGE */
+/* 3. URGENT METRICS: SAFETY ORANGE */
 [data-testid="stMetricValue"] {
     color: #FF8C00 !important; 
     text-shadow: 0 0 15px #FF8C00, 0 0 5px #FFFFFF;
@@ -50,89 +51,12 @@ h1, h2, h3, .stMetric, p {
     letter-spacing: 1px;
 }
 
-/* COMMAND INPUT AREA (Targeting the container and bottom block) */
-[data-testid="stBottomBlockContainer"] {
+/* 4. BLACKOUT: BOTTOM COMMAND SECTION */
+header, [data-testid="stHeader"], [data-testid="stFooter"], 
+[data-testid="stBottomBlockContainer"], div[data-testid="stChatInput"] {
     background-color: #050805 !important;
 }
 
-/* AMBER COMMAND INPUT BOX */
+/* 5. THE AMBER COMMAND CAPSULE */
 [data-testid="stChatInputContainer"] {
-    background-color: #020502 !important;
-    border: 2px solid #FF8C00 !important; 
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(255, 140, 0, 0.2);
-    border-top: 2px solid #FF8C00 !important; /* Replaces the green border-top */
-}
-
-
-[data-testid="stChatInput"] button {
-    color: #FF8C00 !important;
-}
-
-[data-testid="stChatInput"] textarea::placeholder {
-    color: rgba(255, 140, 0, 0.5) !important;
-}
-
-/* 1. CLOAK THE BOTTOM CONTAINER */
-[data-testid="stBottomBlockContainer"] {
-    background-color: #050805 !important;
-}
-
-/* 2. REPAINT THE INPUT TRAY (The Amber Box) */
-[data-testid="stChatInputContainer"] {
-    background-color: #020502 !important;
-    border: 2px solid #FF8C00 !important; /* Safety Orange Border */
-    border-radius: 8px;
-    box-shadow: 0 0 15px rgba(255, 140, 0, 0.3);
-}
-
-/* 3. SET INPUT TEXT TO AMBER */
-[data-testid="stChatInput"] textarea {
-    background-color: #020502 !important;
-    color: #FF8C00 !important; /* Amber Text */
-    background-color: transparent !important;
-    caret-color: #FF8C00 !important;
-    font-family: 'Courier New', Courier, monospace;
-}
-
-/* 4. SYMBOL & BUTTON STYLING */
-[data-testid="stChatInput"] button {
-    color: #FF8C00 !important;
-}
-
-/* 5. GHOST TEXT (Placeholder) */
-[data-testid="stChatInput"] textarea::placeholder {
-    background-color: #020502 !important;
-    color: rgba(255, 140, 0, 0.4) !important;
-}
-
-/* FORCE ENTIRE BOTTOM BLOCK TO BLACK */
-[data-testid="stBottomBlockContainer"] {
-    background-color: #050805 !important;
-}
-
-/* TARGET THE INNER WRAPPER TO KILL WHITE GHOSTING */
-div[data-testid="stChatInput"] {
-    background-color: #050805 !important;
-}
-
-/* THE COMMAND BOX: BLACK BG, AMBER BORDER */
-[data-testid="stChatInputContainer"] {
-    background-color: #020502 !important;
-    border: 2px solid #FF8C00 !important; 
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(255, 140, 0, 0.15);
-}
-
-/* INPUT TEXT: AMBER ON BLACK */
-[data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important; 
-    background-color: transparent !important;
-    caret-color: #FF8C00 !important;
-    font-family: 'Courier New', Courier, monospace;
-}
-
-/* SEND ICON: AMBER */
-[data-testid="stChatInput"] button svg {
-    fill: #FF8C00 !important;
-}
+    background-color: #020502 !
