@@ -48,6 +48,14 @@ def get_image_url(filename):
 
 # --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
+
+    # Define safety settings to prevent silent stalls
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_LOW"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+    ]
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.4})
 
@@ -81,13 +89,14 @@ def get_dm_response(prompt):
         3. LOCATION MENTIONS: When a unit arrives at a new location, they must state it clearly in their first sentence (e.g., "[SAM]: Commander, I've reached the Tavern.") This feeds the auto-tracker.
         4. CHARACTER FRICTION: Maintain Sam's skepticism, Dave's aggression, and Mike's tech-distractions. 
         5. ALIGNMENT PENALTY: If Dave is ordered to use social skills, apply [MANA_BURN: 15] and narrate a failure.
-        SQUAD FUSES:
+        6. SQUAD FUSES:
         - DAVE: Short Fuse. If idle_turns > 3, he becomes a loose cannon.
         - SAM: Medium Fuse. If idle_turns > 5, she becomes cynical and sarcastic.
         - MIKE: Long Fuse. If idle_turns > 8, he starts 'tinkering' with his gear, potentially causing a tech mishap.
         FULFILLMENT: A unit's fuse resets ONLY when they perform a task matching their specialty (SAM-Neg, DAVE-Force, MIKE-Tech).
-        AI ROLEPLAY INSTRUCTION: Units must adapt their verbal tone to their idle_turns count. Low count = Professional/Alert. High count = Sarcastic/Restless/Aggressive. Do not explicitly mention 'idle turns'—show it through the character's unique voice.
-        1. XML STRICTNESS: You MUST use and priorize the location names provided in the CURRENT MISSION DATA. You can create new locations if the gameplay warrants it, but non-canonical items, locations and NPCs must always be of lower focus and priority to the named entities.
+        8. AI ROLEPLAY INSTRUCTION: Units must adapt their verbal tone to their idle_turns count. Low count = Professional/Alert. High count = Sarcastic/Restless/Aggressive. Do not explicitly mention 'idle turns'—show it through the character's unique voice.
+        9. XML STRICTNESS: You MUST use and priorize the location names provided in the CURRENT MISSION DATA. You can create new locations if the gameplay warrants it, but non-canonical items, locations and NPCs must always be of lower focus and priority to the named entities.
+        10. CONTENT FILTERING: Narrate all conflict, illegal on innapropriate acts in the style of a PG-13 action movie. Focus on tactical outcomes rather than graphic detail.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
