@@ -105,3 +105,34 @@ h1, h2, h3, .stMetric, p {
     background-color: #020502 !important;
     color: rgba(255, 140, 0, 0.4) !important;
 }
+
+/* FORCE ENTIRE BOTTOM BLOCK TO BLACK */
+[data-testid="stBottomBlockContainer"] {
+    background-color: #050805 !important;
+}
+
+/* TARGET THE INNER WRAPPER TO KILL WHITE GHOSTING */
+div[data-testid="stChatInput"] {
+    background-color: #050805 !important;
+}
+
+/* THE COMMAND BOX: BLACK BG, AMBER BORDER */
+[data-testid="stChatInputContainer"] {
+    background-color: #020502 !important;
+    border: 2px solid #FF8C00 !important; 
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(255, 140, 0, 0.15);
+}
+
+/* INPUT TEXT: AMBER ON BLACK */
+[data-testid="stChatInput"] textarea {
+    color: #FF8C00 !important; 
+    background-color: transparent !important;
+    caret-color: #FF8C00 !important;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* SEND ICON: AMBER */
+[data-testid="stChatInput"] button svg {
+    fill: #FF8C00 !important;
+}
