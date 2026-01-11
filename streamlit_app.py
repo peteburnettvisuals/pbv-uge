@@ -100,7 +100,7 @@ def get_dm_response(prompt):
         st.session_state.chat_session.send_message(sys_instr)
 
     # 3. ADVANCE MISSION CLOCK
-    st.session_state.mission_time -= 1
+    #st.session_state.mission_time -= 1
     response_text = st.session_state.chat_session.send_message(prompt).text
 
     # 4. ENHANCED DYNAMIC TRACKER (Refactored for Modern Sites)
@@ -200,7 +200,7 @@ with chat_container:
             st.write(msg["content"])
 
 if prompt := st.chat_input("Issue Commands..."):
-    # Advance clock ONLY on user input
+    # The clock only moves when the Commander acts
     st.session_state.mission_time -= 1 
     
     st.session_state.messages.append({"role": "user", "content": prompt})

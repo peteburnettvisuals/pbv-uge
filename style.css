@@ -51,10 +51,24 @@ h1, h2, h3, .stMetric, p {
     letter-spacing: 1px;
 }
 
-/* 4. BLACKOUT: BOTTOM COMMAND SECTION */
-header, [data-testid="stHeader"], [data-testid="stFooter"], 
-[data-testid="stBottomBlockContainer"], div[data-testid="stChatInput"], .stChatInput {
+/* ELIMINATE WHITE GHOSTING */
+[data-testid="stBottomBlockContainer"], .stChatInput, div[data-testid="stChatInput"] {
     background-color: #050805 !important;
 }
 
-/*
+/* GRAPHITE COMMAND CAPSULE */
+[data-testid="stChatInputContainer"] {
+    background-color: #111111 !important; /* High legibility, zero glare */
+    border: 2px solid #FF8C00 !important; 
+    border-radius: 25px !important;
+    box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
+}
+
+/* AMBER COMMAND TEXT */
+[data-testid="stChatInput"] textarea {
+    color: #FF8C00 !important; 
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    background-color: transparent !important;
+    caret-color: #FF8C00 !important;
+}
