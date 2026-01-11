@@ -54,8 +54,9 @@ def get_dm_response(prompt):
     # Load XML Truth
     tree = ET.parse("game_sheet.xml")
     root = tree.getroot()
-    
     chapter_data = root.find(f"chapter[@id='{st.session_state.current_chapter_id}']")
+    locations_xml = chapter_data.find("locations")
+    location_list = [loc.get("name") for loc in locations_xml.findall("location")]
     
     if st.session_state.chat_session is None:
         # THE COMMANDER PROTOCOLS
@@ -64,6 +65,10 @@ def get_dm_response(prompt):
         
         YOU ARE: The 'Comms Net' relaying feeds from SAM, DAVE, and MIKE.
         PLAYER IS: COMMANDER.
+
+        CURRENT MISSION DATA:
+        - PRIMARY SECTOR: {chapter_data.get('title')}
+        - VALID LOCATIONS: {', '.join(location_list)}
         
         UNIT PROFILES:
         - SAM: Cynical, logical. High Negotiation (95), Low Force (25). Needs a 'Plan'.
@@ -82,6 +87,7 @@ def get_dm_response(prompt):
         - MIKE: Long Fuse. If idle_turns > 8, he starts 'tinkering' with his gear, potentially causing a tech mishap.
         FULFILLMENT: A unit's fuse resets ONLY when they perform a task matching their specialty (SAM-Neg, DAVE-Force, MIKE-Tech).
         AI ROLEPLAY INSTRUCTION: Units must adapt their verbal tone to their idle_turns count. Low count = Professional/Alert. High count = Sarcastic/Restless/Aggressive. Do not explicitly mention 'idle turns'—show it through the character's unique voice.
+        1. XML STRICTNESS: You MUST use and priorize the location names provided in the CURRENT MISSION DATA. You can create new locations if the gameplay warrants it, but non-canonical items, locations and NPCs must always be of lower focus and priority to the named entities.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
