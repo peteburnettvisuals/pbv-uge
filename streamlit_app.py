@@ -131,7 +131,6 @@ def get_dm_response(prompt):
 
 # --- UI LAYOUT ---
 with st.sidebar:
-    with st.sidebar:
     st.header("🦅 GUNDOG C2")
     
     # Dual-Metric HUD
