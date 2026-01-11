@@ -7,7 +7,7 @@ import datetime
 # --- CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="UGE: Architect Command")
 
-# Session State Initialization (Squad Pattern)
+# Unified Session State Initialization
 if "mana" not in st.session_state:
     st.session_state.update({
         "mana": 100,
@@ -15,13 +15,16 @@ if "mana" not in st.session_state:
         "messages": [],
         "current_chapter_id": "1",
         "chat_session": None,
-        # THE SQUAD DOSSIER
+        "efficiency_score": 1000,
+        # SQUAD DATA
+        "locations": {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"},
+        "last_locations": {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"},
+        "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
         "squad": {
             "SAM": {"role": "Negotiator", "neg": 95, "force": 25, "tech": 35, "status": "Active"},
             "DAVE": {"role": "Enforcer", "neg": 10, "force": 90, "tech": 10, "status": "Active"},
             "MIKE": {"role": "Specialist", "neg": 50, "force": 35, "tech": 85, "status": "Active"}
-        },
-        "efficiency_score": 1000
+        }
     })
 
 # --- UTILITY FUNCTIONS ---
@@ -68,17 +71,44 @@ def get_dm_response(prompt):
         - MIKE: ADHD, tech-obsessed. High Tech (85), Low Force (35). Needs 'Focus'.
 
         OPERATIONAL PROTOCOLS:
-        1. MULTIPLEXED FEED: Report status from both Tavern and Herb Shop simultaneously.
-        2. COMPETENCY FRICTION: If Architect sends DAVE to negotiate, describe a 'Full Metal Jacket' failure. Append [MANA_BURN: 15].
-        3. RADIO TAGS: Prepend messages with [SAM], [DAVE], or [MIKE].
-        4. UNIT ACQUISITION: Use [ADD_ITEM: Name] for gear.
-        5. MISSION END: Use [CHAPTER_COMPLETE] only when objectives in both threads are met.
+        1. NO HEADERS: Never use "Tavern Thread" or "Herb Shop" headers. 
+        2. UNIT TAGS: Every transmission MUST start with [SAM], [DAVE], or [MIKE].
+        3. LOCATION MENTIONS: When a unit arrives at a new location, they must state it clearly in their first sentence (e.g., "[SAM]: Commander, I've reached the Tavern.") This feeds the auto-tracker.
+        4. CHARACTER FRICTION: Maintain Sam's skepticism, Dave's aggression, and Mike's tech-distractions. 
+        5. ALIGNMENT PENALTY: If Dave is ordered to use social skills, apply [MANA_BURN: 15] and narrate a failure.
+        6. IDLE DAVE PROTOCOL: Monitor DAVE's idle_turns. 
+        - 2 Turns Idle: He starts 'checking his gear' and interrupting the feed with grunts.
+        - 3 Turns Idle: He begins making 'suggestions' (usually involving violence) to the other units on the net.
+        - 4 Turns Idle: Significant frustration. He will attempt to provoke an NPC at his current location to 'see if they've got any spine.' [MANA_BURN: 10]
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
     response_text = st.session_state.chat_session.send_message(prompt).text
 
+    # --- AUTO-TRACKER LOGIC ---
+    # Initialize locations if not present
+    if "locations" not in st.session_state:
+        st.session_state.locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
+
+    # Look for: [NAME] (Location Name) or [NAME]: I am at Location
+    for unit in ["SAM", "DAVE", "MIKE"]:
+        # Regex looks for the unit tag and the first mention of a known location following it
+        loc_match = re.search(rf"\[{unit}\].*?(Tavern|Herb Shop|Square|Mountain)", response_text, re.IGNORECASE)
+        if loc_match:
+            st.session_state.locations[unit] = loc_match.group(1).title()
+
+    
+
+    for unit in ["SAM", "DAVE", "MIKE"]:
+        # If the regex confirms they are in the same spot as last turn
+        if st.session_state.locations[unit] == st.session_state.last_locations[unit]:
+            st.session_state.idle_turns[unit] += 1
+        else:
+            # Movement resets the clock!
+            st.session_state.idle_turns[unit] = 0
+            st.session_state.last_locations[unit] = st.session_state.locations[unit]
+    
     # --- TAG PROCESSING ---
     if "[MANA_BURN:" in response_text:
         penalty = int(re.search(r"\[MANA_BURN:\s*(\d+)\]", response_text).group(1))
@@ -97,27 +127,38 @@ def get_dm_response(prompt):
 with st.sidebar:
     st.header("🦅 BLACK RAVEN C2")
     
-    # MISSION RESET BUTTON
     if st.button("🚨 ABORT MISSION (RESET)"):
         st.session_state.messages = []
         st.session_state.chat_session = None
         st.session_state.mana = 100
-        st.session_state.inventory = ["Command Terminal", "Echo Shard"]
+        st.session_state.efficiency_score = 1000
+        # Reset the tracker
+        st.session_state.locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
+        st.session_state.last_locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
+        st.session_state.idle_turns = {"SAM": 0, "DAVE": 0, "MIKE": 0}
         st.rerun()
 
     st.divider()
     
-    # DYNAMIC SQUAD TRACKER
+    #Deployment Location Tracker
     st.subheader("📍 DEPLOYMENT STATUS")
-    # We pull the last known location from the AI history or a state variable
-    # For now, we'll use a placeholder that you can update via regex in get_dm_response
     cols = st.columns(3)
-    with cols[0]: st.caption("SAM"); st.write("🟢 Square")
-    with cols[1]: st.caption("DAVE"); st.write("🟡 Square")
-    with cols[2]: st.caption("MIKE"); st.write("🔵 Square")
+    for i, unit in enumerate(["SAM", "DAVE", "MIKE"]):
+        with cols[i]:
+            st.caption(unit)
+            # 1. Get the current idle count
+            idle = st.session_state.idle_turns.get(unit, 0)
+            
+            # 2. Determine color based on tension (overwrites the fixed dots)
+            if idle < 2: status_color = "🟢"
+            elif idle < 4: status_color = "🟡"
+            else: status_color = "🔴"
+            
+            # 3. Display the dynamic location
+            loc = st.session_state.locations.get(unit, "Square")
+            st.write(f"{status_color} {loc}")
     
     st.divider()
-    st.subheader("👥 SQUAD DOSSIERS")
     st.subheader("👥 SQUAD DOSSIERS")
     unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
     
