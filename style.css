@@ -64,13 +64,6 @@ h1, h2, h3, .stMetric, p {
     border-top: 2px solid #FF8C00 !important; /* Replaces the green border-top */
 }
 
-/* TEXT AREA FOCUS & STYLING */
-[data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important; 
-    background-color: transparent !important;
-    caret-color: #FF8C00 !important;
-    font-family: 'Courier New', Courier, monospace;
-}
 
 [data-testid="stChatInput"] button {
     color: #FF8C00 !important;
@@ -78,4 +71,35 @@ h1, h2, h3, .stMetric, p {
 
 [data-testid="stChatInput"] textarea::placeholder {
     color: rgba(255, 140, 0, 0.5) !important;
+}
+
+/* 1. CLOAK THE BOTTOM CONTAINER */
+[data-testid="stBottomBlockContainer"] {
+    background-color: #050805 !important;
+}
+
+/* 2. REPAINT THE INPUT TRAY (The Amber Box) */
+[data-testid="stChatInputContainer"] {
+    background-color: #020502 !important;
+    border: 2px solid #FF8C00 !important; /* Safety Orange Border */
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(255, 140, 0, 0.3);
+}
+
+/* 3. SET INPUT TEXT TO AMBER */
+[data-testid="stChatInput"] textarea {
+    color: #FF8C00 !important; /* Amber Text */
+    background-color: transparent !important;
+    caret-color: #FF8C00 !important;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* 4. SYMBOL & BUTTON STYLING */
+[data-testid="stChatInput"] button {
+    color: #FF8C00 !important;
+}
+
+/* 5. GHOST TEXT (Placeholder) */
+[data-testid="stChatInput"] textarea::placeholder {
+    color: rgba(255, 140, 0, 0.4) !important;
 }
