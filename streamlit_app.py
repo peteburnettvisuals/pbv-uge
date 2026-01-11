@@ -106,7 +106,20 @@ def get_dm_response(prompt):
         if loc_match:
             st.session_state.locations[unit] = loc_match.group(1).title()
 
-    
+    # --- ENHANCED DYNAMIC TRACKER ---
+    for unit in ["SAM", "DAVE", "MIKE"]:
+        # We now scan for the XML location names + common tactical shorthand
+        dynamic_locs = "|".join(location_list + ["Gate", "Alley", "Cellar"])
+        
+        # regex flag re.IGNORECASE is vital here
+        pattern = rf"\[{unit}\].*?({dynamic_locs})"
+        loc_match = re.search(pattern, response_text, re.IGNORECASE)
+        
+        if loc_match:
+            # Standardize the name for the UI
+            new_loc = loc_match.group(1).title()
+            if "Gate" in new_loc: new_loc = "East Gate"
+            st.session_state.locations[unit] = new_loc
 
     # --- METIER FULFILLMENT TRACKER ---
     for unit in ["SAM", "DAVE", "MIKE"]:
