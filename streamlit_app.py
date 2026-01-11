@@ -76,10 +76,12 @@ def get_dm_response(prompt):
         3. LOCATION MENTIONS: When a unit arrives at a new location, they must state it clearly in their first sentence (e.g., "[SAM]: Commander, I've reached the Tavern.") This feeds the auto-tracker.
         4. CHARACTER FRICTION: Maintain Sam's skepticism, Dave's aggression, and Mike's tech-distractions. 
         5. ALIGNMENT PENALTY: If Dave is ordered to use social skills, apply [MANA_BURN: 15] and narrate a failure.
-        6. IDLE DAVE PROTOCOL: Monitor DAVE's idle_turns. 
-        - 2 Turns Idle: He starts 'checking his gear' and interrupting the feed with grunts.
-        - 3 Turns Idle: He begins making 'suggestions' (usually involving violence) to the other units on the net.
-        - 4 Turns Idle: Significant frustration. He will attempt to provoke an NPC at his current location to 'see if they've got any spine.' [MANA_BURN: 10]
+        SQUAD FUSES:
+        - DAVE: Short Fuse. If idle_turns > 3, he becomes a loose cannon.
+        - SAM: Medium Fuse. If idle_turns > 5, she becomes cynical and sarcastic.
+        - MIKE: Long Fuse. If idle_turns > 8, he starts 'tinkering' with his gear, potentially causing a tech mishap.
+        FULFILLMENT: A unit's fuse resets ONLY when they perform a task matching their specialty (SAM-Neg, DAVE-Force, MIKE-Tech).
+        AI ROLEPLAY INSTRUCTION: Units must adapt their verbal tone to their idle_turns count. Low count = Professional/Alert. High count = Sarcastic/Restless/Aggressive. Do not explicitly mention 'idle turns'—show it through the character's unique voice.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
@@ -100,14 +102,22 @@ def get_dm_response(prompt):
 
     
 
+    # --- METIER FULFILLMENT TRACKER ---
     for unit in ["SAM", "DAVE", "MIKE"]:
-        # If the regex confirms they are in the same spot as last turn
-        if st.session_state.locations[unit] == st.session_state.last_locations[unit]:
-            st.session_state.idle_turns[unit] += 1
-        else:
-            # Movement resets the clock!
+        # 1. Default to incrementing the unfulfilled count
+        st.session_state.idle_turns[unit] += 1
+        
+        # 2. Define the 'Fulfillment Stems'
+        metier_keywords = {
+            "SAM": r"(negotiat|persuad|talk|ask|inform|bribe|lie|truth|question|prob)",
+            "DAVE": r"(fight|punch|shov|block|guard|muscl|pts|intimidat|flex|drink|ale|beer)",
+            "MIKE": r"(tech|scan|magic|cloak|pick|lock|spectral|analyz|residue|tinker)"
+        }
+        
+        # 3. Check for [UNIT] + Fulfillment Stem in the AI response
+        pattern = rf"\[{unit}\].*?{metier_keywords[unit]}"
+        if re.search(pattern, response_text, re.IGNORECASE):
             st.session_state.idle_turns[unit] = 0
-            st.session_state.last_locations[unit] = st.session_state.locations[unit]
     
     # --- TAG PROCESSING ---
     if "[MANA_BURN:" in response_text:
@@ -179,12 +189,15 @@ with st.sidebar:
 # --- MAIN TERMINAL ---
 chat_container = st.container(height=650, border=True)
 with chat_container:
+    # AUTO-SITREP: If there are no messages, trigger the start immediately
     if not st.session_state.messages:
         with st.spinner("Establishing Multiplex Link..."):
-            init = get_dm_response("Architect on deck. Initialize squad feeds.")
-            st.session_state.messages.append({"role": "assistant", "content": init})
-            st.rerun()
+            # This triggers the sys_instr and gets the first squad report
+            init_response = get_dm_response("Commander on deck. Initialize squad feeds.")
+            st.session_state.messages.append({"role": "assistant", "content": init_response})
+            # st.rerun() is removed here to avoid an infinite loop during initial load
 
+    # Display the comms log
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
