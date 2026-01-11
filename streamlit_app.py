@@ -80,7 +80,7 @@ def get_dm_response(prompt):
     if st.session_state.chat_session is None:
         sys_instr = f"""
         {root.find("synopsis").text}
-        YOU ARE: Agency Comms Net. PLAYER: HANDLER.
+        YOU ARE: Agency Comms Net. PLAYER: Commander.
         VALID LOCATIONS: {', '.join(location_list)}
         
         UNIT PROFILES:
@@ -94,6 +94,7 @@ def get_dm_response(prompt):
         3. CONTENT: PG-13 Tactical Thriller style. Focus on outcomes.
         4. SQUAD FUSES: DAVE (Short: 3), SAM (Med: 5), MIKE (Long: 8).
         5. VIABILITY: High-visibility violence triggers [VIABILITY_BURN: X].
+        6. INTERNAL PROTOCOL: You are a passive multiplexer. You NEVER issue orders to the Player. You only relay the voices of SAM, DAVE, and MIKE. You are the mirror, not the master.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
