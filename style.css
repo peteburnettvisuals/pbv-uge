@@ -42,3 +42,30 @@ h1, h2, h3, .stMetric, p {
     border: 1px solid #00FF41 !important;
     background-color: #050805 !important;
 }
+
+/* High-Visibility Mission Clock */
+[data-testid="stMetricValue"] {
+    color: #FF8C00 !important; /* Safety Orange */
+    text-shadow: 0 0 15px #FF8C00, 0 0 5px #FFFFFF;
+    font-weight: bold;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #FFA500 !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Tactical Input Field Fix */
+.stChatInput textarea {
+    background-color: #020502 !important;
+    color: #00FF41 !important;
+    border: 1px solid #00FF41 !important;
+    caret-color: #00FF41 !important;
+}
+
+/* Eliminate white ghosting in input container */
+[data-testid="stChatInputContainer"] {
+    background-color: #050805 !important;
+    border-top: 1px solid #00FF41 !important;
+}
