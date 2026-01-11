@@ -1,49 +1,44 @@
-/* style.css - Final Constraint Overhaul */
+/* GUNDOG COMMAND & CONTROL HUD */
 
-/* 1. GLOBAL: Centering the overall page content */
-.stApp .main .block-container {
-    max-width: 800px !important;
-    margin: auto !important;
-    padding-top: 1rem !important;
-}
-
-/* 2. CONTAINER SPECIFIC: Constraining the scrollable chat area */
-/* This targets the specific container created by st.container(height=650) */
-[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"] {
-    max-width: 800px !important;
-    margin: auto !important;
-}
-
-/* 3. IMAGES: Forcing images to respect the column and not bleed out */
-[data-testid="stImage"] img {
-    max-width: 100% !important;
-    height: auto !important;
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-
-/* 4. SIDEBAR HUD: High-visibility Imperial Green */
-[data-testid="stSidebar"] {
-    background-color: #0b0f19 !important;
-    border-right: 2px solid #00FF41;
-}
-
-[data-testid="stSidebar"] * {
+.stApp {
+    background-color: #050805;
     color: #00FF41 !important;
+    font-family: 'Courier New', Courier, monospace;
 }
 
-/* 5. INPUT BOX: Center-aligning the tactical input */
-[data-testid="stChatInput"] {
-    max-width: 800px !important;
-    margin: auto !important;
-}
-
-/* style.css image constraint */
-[data-testid="stImage"] img {
-    max-width: 100% !important; /* Forces image to shrink on mobile */
-    height: auto !important;     /* Maintains aspect ratio */
+/* CRT Scanline Effect */
+.stApp::before {
+    content: " ";
     display: block;
-    margin-left: 0;             /* Aligns image to the left of the chat bubble */
-    border-radius: 8px;
-    border: 1px solid rgba(0, 255, 65, 0.3); /* Optional tactical green border */
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    z-index: 9999;
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+/* Sidebar Phosphor Look */
+[data-testid="stSidebar"] {
+    background-color: #020502 !important;
+    border-right: 1px solid #00FF41 !important;
+}
+
+/* Glowing Metrics & Progress */
+h1, h2, h3, .stMetric, p {
+    color: #00FF41 !important;
+    text-shadow: 0 0 10px #00FF41;
+}
+
+.stProgress > div > div > div > div {
+    background-color: #00FF41 !important;
+    box-shadow: 0 0 15px #00FF41;
+}
+
+/* Retro Terminal Inputs */
+.stChatInputContainer {
+    border: 1px solid #00FF41 !important;
+    background-color: #050805 !important;
 }

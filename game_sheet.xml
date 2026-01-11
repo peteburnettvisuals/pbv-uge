@@ -1,46 +1,56 @@
-<game_sheet>
+<root>
     <synopsis>
-    - Fantasy genre blended with spec-ops methodology (Apocalypse Now meets Middle Earth).
-    - Player Role: 'Architect' (C2 Commander). You are not in the field; you manage the squad via a multi-channel Echo Shard net.
-    - Tone: Laconic, dry humor, businesslike (Fantasy Agent K).
-    - Goal: Terminate the rogue Warlock Malakor.
+    COMMANDER'S INTENT: OPERATION DEMETER.
+    
+    1. PURPOSE: Prevent the proliferation of advanced anti-aircraft munitions to the local Cartel to maintain regional stability.
+    
+    2. METHOD: Gundog Squad will conduct a deniable infiltration of Docking Bay 4. 
+       - Phase I: Intel/SIGINT acquisition via Harbormaster Office and Server Hub.
+       - Phase II: Sabotage of munitions on freighter 'Mariposa.'
+       - Phase III: Clean exfiltration via North Perimeter.
+    
+    3. END STATE: Munitions destroyed; Gundog assets extracted; Zero Agency attribution (Maintain Viability > 0%).
+    
+    TACTICAL CONSTRAINT: "The world is watching." Minimize "TikTok Burn." High-visibility violence is a failure condition.
     </synopsis>
-
-    <squad_logic>
-        <unit id="SAM" role="The Face">
-            <stats negotiation="95" force="25" technical="35" />
-            <psych>Cynical, logical, mission-hardened. Needs clear tactical reasoning.</psych>
-        </unit>
-        <unit id="DAVE" role="The Enforcer">
-            <stats negotiation="10" force="90" technical="10" />
-            <psych>Surly, respects strength. Requires decisive commands. (Full Metal Jacket vibe).</psych>
-        </unit>
-        <unit id="MIKE" role="The Specialist">
-            <stats negotiation="50" force="35" technical="85" />
-            <psych>Brilliant but ADHD. Enthusiastic about lore/tech. Needs refocusing.</psych>
-        </unit>
-    </squad_logic>
-
-    <chapter id="1">
-        <title>The Foot of Certain Death Mountain</title>
-        <current_location>Oakhaven (C2 Multi-Op)</current_location>
-        
-        <main_objectives>
-            - THREAD A (The Rusted Tankard): Secure the Orichalcum dagger from Greeb. (Sam's ideal task).
-            - THREAD B (Herb's Herbs): Acquire the Unicorn Cloak for signal jamming. (Mike's ideal task).
-            - SECURITY: Maintain a protective perimeter to avoid Wraith Strikes. (Dave's ideal task).
-        </main_objectives>
-
+    <chapter id="1" title="Operation: Ghost Dock">
         <locations>
-            - Oakhaven Village Square: [IMG: oakhaven.jpg] Central C2 point.
-            - The Rusted Tankard: [IMG: tavern.jpg] A tavern. High social complexity.
-            - Herb's Herbs: [IMG: apothecary.jpg] An apothecary. High technical/lore complexity.
+            <location name="Docking Bay 4" desc="The primary arrival point. Industrial, exposed, currently docking the freighter 'Mariposa'."/>
+            <location name="Harbormaster Office" desc="A two-story administrative hub. Holds physical manifests and the local Port Authority head."/>
+            <location name="Server Hub" desc="The digital nervous system of the port. Encrypted but accessible for Mike."/>
+            <location name="North Perimeter" desc="The only viable exfiltration route before the main road is cut off by the Cartel."/>
         </locations>
 
-        <npcs>
-            - Greeb Snelling: [IMG: greeb.jpg] Veteran landlord. Suspicious of outsiders; hates aggressive 'Daves'.
-            - Herb Byfrost: [IMG: herb.jpg] Eccentric alchemist. Needs someone who speaks 'technical' (Mike) to avoid overpaying.
-        </npcs>
-    </chapter>
+        <squad_profiles>
+            <unit name="SAM" role="Intel / Social Engineering">
+                <traits>Cynical, logical, fluent in six languages. Hates "Mission Creep."</traits>
+                <metier>Negotiation (95), Logic (85), Force (25).</metier>
+                <fuse>Medium. If idle turns > 5, she begins questioning the Handler's ethics/competence.</fuse>
+                <fulfillment_keywords>(bribe|interrogate|flip|negotiate|persuade|alias|intel|social)</fulfillment_keywords>
+            </unit>
+            <unit name="DAVE" role="Point Man / Direct Action">
+                <traits>Surly, brief, PTSD-hardened. Requires clear Rules of Engagement.</traits>
+                <metier>Force (90), Intimidation (80), Social (10).</metier>
+                <fuse>Short. If idle turns > 3, he begins taking 'proactive' security measures (Going Loud).</fuse>
+                <fulfillment_keywords>(breach|neutralize|suppress|clear|secure|ordnance|shove|punch)</fulfillment_keywords>
+            </unit>
+            <unit name="MIKE" role="SIGINT / Electronic Warfare">
+                <traits>Hyper-focused, tech-obsessed, relies on heavy caffeine. Easily distracted by 'clean' signals.</traits>
+                <metier>Tech (85), Surveillance (80), Force (35).</metier>
+                <fuse>Long. If idle turns > 8, he starts doing things for fun which are either off-mission, or worse, counter-productive.</fuse>
+                <fulfillment_keywords>(hack|scramble|drone|decrypt|intercept|bypass|uplink|sensor)</fulfillment_keywords>
+            </unit>
+        </squad_profiles>
 
-    </game_sheet>
+        <assets>
+            <asset id="sat_convoy" trigger_type="time" trigger_val="10">
+                <filename>sat_intel_0550.png</filename>
+                <caption font="terminal">SAT-INTEL: CARTEL QRF INBOUND. ETA 10 MINUTES.</caption>
+            </asset>
+            <asset id="cctv_office" trigger_type="achievement" trigger_val="100">
+                <filename>cctv_harbormaster.png</filename>
+                <caption font="terminal">CCTV FEED ESTABLISHED: MONITORING HARBORMASTER OFFICE.</caption>
+            </asset>
+        </assets>
+    </chapter>
+</root>

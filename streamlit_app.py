@@ -4,26 +4,35 @@ import google.generativeai as genai
 import re
 import datetime
 
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+# Load the Tactical HUD
+local_css("style.css")
+
 # --- CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="UGE: Architect Command")
 
 # Unified Session State Initialization
-if "mana" not in st.session_state:
+if "viability" not in st.session_state:
     st.session_state.update({
-        "mana": 100,
-        "inventory": ["Command Terminal", "Echo Shard"],
+        "viability": 100,      # Replaces Mana: Plausible Deniability
+        "mission_time": 60,   # 60-minute window (0500-0600)
+        "inventory": ["C2 Terminal", "Encrypted Uplink"], 
         "messages": [],
         "current_chapter_id": "1",
         "chat_session": None,
         "efficiency_score": 1000,
-        # SQUAD DATA
-        "locations": {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"},
-        "last_locations": {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"},
+        "unlocked_intel": [],  # For the upcoming Asset Gallery
+        
+        # SQUAD DATA - Starting at the Insertion Point
+        "locations": {"SAM": "Perimeter", "DAVE": "Perimeter", "MIKE": "Perimeter"},
         "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
         "squad": {
-            "SAM": {"role": "Negotiator", "neg": 95, "force": 25, "tech": 35, "status": "Active"},
-            "DAVE": {"role": "Enforcer", "neg": 10, "force": 90, "tech": 10, "status": "Active"},
-            "MIKE": {"role": "Specialist", "neg": 50, "force": 35, "tech": 85, "status": "Active"}
+            "SAM": {"role": "Intel", "neg": 95, "force": 25, "tech": 35, "status": "Active"},
+            "DAVE": {"role": "Point", "neg": 10, "force": 90, "tech": 10, "status": "Active"},
+            "MIKE": {"role": "SIGINT", "neg": 50, "force": 35, "tech": 85, "status": "Active"}
         }
     })
 
@@ -48,8 +57,7 @@ def get_image_url(filename):
 
 # --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
-
-    # Define safety settings to prevent silent stalls
+    # 1. TACTICAL SAFETY & CONFIG
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -57,9 +65,11 @@ def get_dm_response(prompt):
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
     ]
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.4})
+    model = genai.GenerativeModel('gemini-2.0-flash', 
+                                  generation_config={"temperature": 0.3},
+                                  safety_settings=safety_settings)
 
-    # Load XML Truth
+    # 2. XML GROUND TRUTH
     tree = ET.parse("game_sheet.xml")
     root = tree.getroot()
     chapter_data = root.find(f"chapter[@id='{st.session_state.current_chapter_id}']")
@@ -67,136 +77,94 @@ def get_dm_response(prompt):
     location_list = [loc.get("name") for loc in locations_xml.findall("location")]
     
     if st.session_state.chat_session is None:
-        # THE COMMANDER PROTOCOLS
         sys_instr = f"""
         {root.find("synopsis").text}
-        
-        YOU ARE: The 'Comms Net' relaying feeds from SAM, DAVE, and MIKE.
-        PLAYER IS: COMMANDER.
-
-        CURRENT MISSION DATA:
-        - PRIMARY SECTOR: {chapter_data.get('title')}
-        - VALID LOCATIONS: {', '.join(location_list)}
+        YOU ARE: Agency Comms Net. PLAYER: HANDLER.
+        VALID LOCATIONS: {', '.join(location_list)}
         
         UNIT PROFILES:
-        - SAM: Cynical, logical. High Negotiation (95), Low Force (25). Needs a 'Plan'.
-        - DAVE: Surly, brief. High Force (90), Low Negotiation (10). Needs 'Orders'.
-        - MIKE: ADHD, tech-obsessed. High Tech (85), Low Force (35). Needs 'Focus'.
+        - SAM: Intel/Social. 95 Neg. Needs a plan.
+        - DAVE: Direct Action. 90 Force. Needs ROE.
+        - MIKE: SIGINT. 85 Tech. Needs focus.
 
         OPERATIONAL PROTOCOLS:
-        1. NO HEADERS: Never use "Tavern Thread" or "Herb Shop" headers. 
-        2. UNIT TAGS: Every transmission MUST start with [SAM], [DAVE], or [MIKE].
-        3. LOCATION MENTIONS: When a unit arrives at a new location, they must state it clearly in their first sentence (e.g., "[SAM]: Commander, I've reached the Tavern.") This feeds the auto-tracker.
-        4. CHARACTER FRICTION: Maintain Sam's skepticism, Dave's aggression, and Mike's tech-distractions. 
-        5. ALIGNMENT PENALTY: If Dave is ordered to use social skills, apply [MANA_BURN: 15] and narrate a failure.
-        6. SQUAD FUSES:
-        - DAVE: Short Fuse. If idle_turns > 3, he becomes a loose cannon.
-        - SAM: Medium Fuse. If idle_turns > 5, she becomes cynical and sarcastic.
-        - MIKE: Long Fuse. If idle_turns > 8, he starts 'tinkering' with his gear, potentially causing a tech mishap.
-        FULFILLMENT: A unit's fuse resets ONLY when they perform a task matching their specialty (SAM-Neg, DAVE-Force, MIKE-Tech).
-        8. AI ROLEPLAY INSTRUCTION: Units must adapt their verbal tone to their idle_turns count. Low count = Professional/Alert. High count = Sarcastic/Restless/Aggressive. Do not explicitly mention 'idle turns'—show it through the character's unique voice.
-        9. XML STRICTNESS: You MUST use and priorize the location names provided in the CURRENT MISSION DATA. You can create new locations if the gameplay warrants it, but non-canonical items, locations and NPCs must always be of lower focus and priority to the named entities.
-        10. CONTENT FILTERING: Narrate all conflict, illegal on innapropriate acts in the style of a PG-13 action movie. Focus on tactical outcomes rather than graphic detail.
+        1. UNIT TAGS: Start every transmission with [SAM], [DAVE], or [MIKE].
+        2. TACTICAL MENTIONS: Units must state their location arrival in the first sentence.
+        3. CONTENT: PG-13 Tactical Thriller style. Focus on outcomes.
+        4. SQUAD FUSES: DAVE (Short: 3), SAM (Med: 5), MIKE (Long: 8).
+        5. VIABILITY: High-visibility violence triggers [VIABILITY_BURN: X].
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
+    # 3. ADVANCE MISSION CLOCK
+    st.session_state.mission_time -= 1
     response_text = st.session_state.chat_session.send_message(prompt).text
 
-    # --- AUTO-TRACKER LOGIC ---
-    # Initialize locations if not present
-    if "locations" not in st.session_state:
-        st.session_state.locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
-
-    # Look for: [NAME] (Location Name) or [NAME]: I am at Location
+    # 4. ENHANCED DYNAMIC TRACKER (Refactored for Modern Sites)
     for unit in ["SAM", "DAVE", "MIKE"]:
-        # Regex looks for the unit tag and the first mention of a known location following it
-        loc_match = re.search(rf"\[{unit}\].*?(Tavern|Herb Shop|Square|Mountain)", response_text, re.IGNORECASE)
+        dynamic_locs = "|".join(location_list + ["Perimeter", "Hub", "Office", "Bay"])
+        pattern = rf"\[{unit}\].*?({dynamic_locs})"
+        loc_match = re.search(pattern, response_text, re.IGNORECASE)
         if loc_match:
             st.session_state.locations[unit] = loc_match.group(1).title()
 
-    # --- ENHANCED DYNAMIC TRACKER ---
+    # 5. METIER FULFILLMENT (Refactored for PMC Skills)
     for unit in ["SAM", "DAVE", "MIKE"]:
-        # We now scan for the XML location names + common tactical shorthand
-        dynamic_locs = "|".join(location_list + ["Gate", "Alley", "Cellar"])
-        
-        # regex flag re.IGNORECASE is vital here
-        pattern = rf"\[{unit}\].*?({dynamic_locs})"
-        loc_match = re.search(pattern, response_text, re.IGNORECASE)
-        
-        if loc_match:
-            # Standardize the name for the UI
-            new_loc = loc_match.group(1).title()
-            if "Gate" in new_loc: new_loc = "East Gate"
-            st.session_state.locations[unit] = new_loc
-
-    # --- METIER FULFILLMENT TRACKER ---
-    for unit in ["SAM", "DAVE", "MIKE"]:
-        # 1. Default to incrementing the unfulfilled count
         st.session_state.idle_turns[unit] += 1
-        
-        # 2. Define the 'Fulfillment Stems'
         metier_keywords = {
-            "SAM": r"(negotiat|persuad|talk|ask|inform|bribe|lie|truth|question|prob)",
-            "DAVE": r"(fight|punch|shov|block|guard|muscl|pts|intimidat|flex|drink|ale|beer)",
-            "MIKE": r"(tech|scan|magic|cloak|pick|lock|spectral|analyz|residue|tinker)"
+            "SAM": r"(bribe|interrogate|flip|negotiate|persuade|alias|intel|social)",
+            "DAVE": r"(breach|neutralize|suppress|clear|secure|ordnance|shove|punch)",
+            "MIKE": r"(hack|scramble|drone|decrypt|intercept|bypass|uplink|sensor)"
         }
-        
-        # 3. Check for [UNIT] + Fulfillment Stem in the AI response
         pattern = rf"\[{unit}\].*?{metier_keywords[unit]}"
         if re.search(pattern, response_text, re.IGNORECASE):
             st.session_state.idle_turns[unit] = 0
     
-    # --- TAG PROCESSING ---
-    if "[MANA_BURN:" in response_text:
-        penalty = int(re.search(r"\[MANA_BURN:\s*(\d+)\]", response_text).group(1))
-        st.session_state.mana = max(0, st.session_state.mana - penalty)
-        st.session_state.efficiency_score -= (penalty * 10)
-        st.toast(f"OPERATIONAL FRICTION: -{penalty}% Mana")
-
-    if "[CHAPTER_COMPLETE]" in response_text:
-        st.session_state.current_chapter_id = str(int(st.session_state.current_chapter_id) + 1)
-        response_text = response_text.replace("[CHAPTER_COMPLETE]", "").strip()
-        st.toast("SECTOR SECURED: Moving to Next Objective.")
+    # 6. TAG PROCESSING (Viability replaces Mana)
+    if "[VIABILITY_BURN:" in response_text:
+        penalty = int(re.search(r"\[VIABILITY_BURN:\s*(\d+)\]", response_text).group(1))
+        st.session_state.viability = max(0, st.session_state.viability - penalty)
+        st.toast(f"🚨 SIGNAL COMPROMISED: -{penalty}% Viability")
 
     return response_text
 
 # --- UI LAYOUT ---
 with st.sidebar:
-    st.header("🦅 BLACK RAVEN C2")
+    with st.sidebar:
+    st.header("🦅 GUNDOG C2")
     
+    # Dual-Metric HUD
+    st.progress(st.session_state.viability / 100, text=f"PLUASIBLE DENIABILITY: {st.session_state.viability}%")
+    
+    avg_morale = sum([100 - (t * 10) for t in st.session_state.idle_turns.values()]) / 3
+    st.progress(avg_morale / 100, text=f"SQUAD MORALE: {int(avg_morale)}%")
+    
+    st.metric(label="MISSION CLOCK", value=f"{st.session_state.mission_time} MIN")
+    
+    # Fixed Abort Logic
     if st.button("🚨 ABORT MISSION (RESET)"):
-        st.session_state.messages = []
-        st.session_state.chat_session = None
-        st.session_state.mana = 100
-        st.session_state.efficiency_score = 1000
-        # Reset the tracker
-        st.session_state.locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
-        st.session_state.last_locations = {"SAM": "Square", "DAVE": "Square", "MIKE": "Square"}
-        st.session_state.idle_turns = {"SAM": 0, "DAVE": 0, "MIKE": 0}
+        st.session_state.clear() # Clears everything to trigger a fresh boot
         st.rerun()
 
     st.divider()
     
-    #Deployment Location Tracker
+    # Deployment Location Tracker (Fixed default to 'Perimeter')
     st.subheader("📍 DEPLOYMENT STATUS")
     cols = st.columns(3)
     for i, unit in enumerate(["SAM", "DAVE", "MIKE"]):
         with cols[i]:
             st.caption(unit)
-            # 1. Get the current idle count
             idle = st.session_state.idle_turns.get(unit, 0)
+            status_color = "🟢" if idle < 2 else "🟡" if idle < 4 else "🔴"
             
-            # 2. Determine color based on tension (overwrites the fixed dots)
-            if idle < 2: status_color = "🟢"
-            elif idle < 4: status_color = "🟡"
-            else: status_color = "🔴"
-            
-            # 3. Display the dynamic location
-            loc = st.session_state.locations.get(unit, "Square")
+            # Start at Perimeter instead of Square
+            loc = st.session_state.locations.get(unit, "Perimeter") 
             st.write(f"{status_color} {loc}")
-    
+
     st.divider()
+    
+     
     st.subheader("👥 SQUAD DOSSIERS")
     unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
     
@@ -221,7 +189,7 @@ with chat_container:
     if not st.session_state.messages:
         with st.spinner("Establishing Multiplex Link..."):
             # This triggers the sys_instr and gets the first squad report
-            init_response = get_dm_response("Commander on deck. All units are currently in Oakhaven Square. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know what locations you can see.")
+            init_response = get_dm_response("Commander on deck. All units are currently at Costa Verde dock. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know what locations you can see.")
             st.session_state.messages.append({"role": "assistant", "content": init_response})
             # st.rerun() is removed here to avoid an infinite loop during initial load
 
