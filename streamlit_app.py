@@ -114,10 +114,19 @@ def get_dm_response(prompt):
 
     # Check if the AI thinks the chapter is over
     if "[CHAPTER_COMPLETE]" in response_text:
+        # 1. Advance the state
         st.session_state.current_chapter_id = str(int(st.session_state.current_chapter_id) + 1)
         st.session_state.current_location_desc = "Certain Death Mountain"
+        
+        # 2. CLEAN the response text so the tag isn't saved to history
+        # This prevents the "Infinite Rerun" loop
+        response_text = response_text.replace("[CHAPTER_COMPLETE]", "").strip()
+        
+        # 3. Inform the player
         st.toast("MISSION OBJECTIVES MET: Moving to next sector.")
-        st.rerun()
+        
+        # 4. We don't return here; we let the function finish so the 
+        # cleaned response_text is sent back to the main loop to be appended.
 
     # 3. ONLY return the text at the very end of the function
     return response_text
