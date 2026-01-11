@@ -37,15 +37,9 @@ h1, h2, h3, .stMetric, p {
     box-shadow: 0 0 15px #00FF41;
 }
 
-/* Retro Terminal Inputs */
-.stChatInputContainer {
-    border: 1px solid #00FF41 !important;
-    background-color: #050805 !important;
-}
-
-/* High-Visibility Mission Clock */
+/* MISSION CLOCK: SAFETY ORANGE */
 [data-testid="stMetricValue"] {
-    color: #FF8C00 !important; /* Safety Orange */
+    color: #FF8C00 !important; 
     text-shadow: 0 0 15px #FF8C00, 0 0 5px #FFFFFF;
     font-weight: bold;
 }
@@ -56,16 +50,32 @@ h1, h2, h3, .stMetric, p {
     letter-spacing: 1px;
 }
 
-/* Tactical Input Field Fix */
-.stChatInput textarea {
-    background-color: #020502 !important;
-    color: #00FF41 !important;
-    border: 1px solid #00FF41 !important;
-    caret-color: #00FF41 !important;
+/* COMMAND INPUT AREA (Targeting the container and bottom block) */
+[data-testid="stBottomBlockContainer"] {
+    background-color: #050805 !important;
 }
 
-/* Eliminate white ghosting in input container */
+/* AMBER COMMAND INPUT BOX */
 [data-testid="stChatInputContainer"] {
-    background-color: #050805 !important;
-    border-top: 1px solid #00FF41 !important;
+    background-color: #020502 !important;
+    border: 2px solid #FF8C00 !important; 
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(255, 140, 0, 0.2);
+    border-top: 2px solid #FF8C00 !important; /* Replaces the green border-top */
+}
+
+/* TEXT AREA FOCUS & STYLING */
+[data-testid="stChatInput"] textarea {
+    color: #FF8C00 !important; 
+    background-color: transparent !important;
+    caret-color: #FF8C00 !important;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+[data-testid="stChatInput"] button {
+    color: #FF8C00 !important;
+}
+
+[data-testid="stChatInput"] textarea::placeholder {
+    color: rgba(255, 140, 0, 0.5) !important;
 }
