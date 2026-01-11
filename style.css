@@ -88,6 +88,7 @@ h1, h2, h3, .stMetric, p {
 
 /* 3. SET INPUT TEXT TO AMBER */
 [data-testid="stChatInput"] textarea {
+    background-color: #020502 !important;
     color: #FF8C00 !important; /* Amber Text */
     background-color: transparent !important;
     caret-color: #FF8C00 !important;
@@ -101,5 +102,6 @@ h1, h2, h3, .stMetric, p {
 
 /* 5. GHOST TEXT (Placeholder) */
 [data-testid="stChatInput"] textarea::placeholder {
+    background-color: #020502 !important;
     color: rgba(255, 140, 0, 0.4) !important;
 }
