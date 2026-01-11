@@ -55,7 +55,7 @@ def get_image_url(filename):
 def get_dm_response(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     # 2.0-flash-exp is perfect for following these complex persona constraints
-    model = genai.GenerativeModel('gemini-2.0-flash-exp', generation_config={"temperature": 0.4})
+    model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.4})
 
     # Load Game Sheet (XML Source of Truth)
     tree = ET.parse("game_sheet.xml")
