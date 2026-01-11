@@ -193,7 +193,7 @@ with chat_container:
     if not st.session_state.messages:
         with st.spinner("Establishing Multiplex Link..."):
             # This triggers the sys_instr and gets the first squad report
-            init_response = get_dm_response("Commander on deck. All units are currently in Oakhaven Square. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you.")
+            init_response = get_dm_response("Commander on deck. All units are currently in Oakhaven Square. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know if you can see a tavern and an apothecary.")
             st.session_state.messages.append({"role": "assistant", "content": init_response})
             # st.rerun() is removed here to avoid an infinite loop during initial load
 
