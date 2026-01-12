@@ -4,7 +4,6 @@
 
 /* 1. GLOBAL UI & CRT EFFECTS */
 .stApp {
-    background-color: #050805;
     color: #00FF41 !important;
     font-family: 'Courier New', Courier, monospace;
 }
@@ -62,9 +61,9 @@ header {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.15; 
+    opacity: 0.9; 
     z-index: -1 !important; 
-    filter: grayscale(100%) brightness(35%);
+    filter: grayscale(0%) brightness(90%);
     pointer-events: none;
 }
 
