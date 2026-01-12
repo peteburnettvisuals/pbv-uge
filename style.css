@@ -9,53 +9,9 @@
     font-family: 'Courier New', Courier, monospace;
 }
 
-/* 2. SIDEBAR & GREEN PHOSPHOR ELEMENTS */
-[data-testid="stSidebar"] {
-    background-color: #020502 !important;
-    border-right: 1px solid #00FF41 !important;
-}
-
-h1, h2, h3, .stMetric, p, span, label {
-    color: #00FF41 !important;
-    text-shadow: 0 0 10px #00FF41;
-}
-
-/* 3. URGENT METRICS: SAFETY ORANGE */
-[data-testid="stMetricValue"] {
-    color: #FF8C00 !important; 
-    text-shadow: 0 0 15px #FF8C00;
-}
-
-/* 4. TOTAL BLACKOUT: BOTTOM & FOOTER */
-/* This specifically kills the white bar that appears under the input capsule */
-[data-testid="stBottomBlockContainer"], 
-.stChatInput, 
-div[data-testid="stChatInput"],
-footer,
-header {
-    background-color: #050805 !important;
-    border: none !important;
-}
-
-/* 5. THE AMBER COMMAND CAPSULE */
-[data-testid="stChatInputContainer"] {
-    background-color: #111111 !important; 
-    border: 2px solid #FF8C00 !important; 
-    border-radius: 25px !important;
-    box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
-}
-
-[data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important;
-    font-size: 1.1rem !important;
-    font-weight: bold !important;
-    background-color: transparent !important;
-    caret-color: #FF8C00 !important;
-}
-
-/* 6. TACTICAL SATELLITE OVERLAY (Fixed Selector) */
-/* We attach this to the stApp so it stays behind the scrollable chat */
-.stApp::after {
+/* 2. THE SATELLITE OVERLAY (Primary Fix) */
+/* We move this to ::before to ensure it's the very first layer */
+.stApp::before {
     content: "";
     position: fixed;
     top: 0; left: 0;
@@ -64,21 +20,65 @@ header {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.15; 
-    z-index: -1 !important; /* Forces it behind all main UI elements */
-    filter: grayscale(100%) brightness(30%);
+    opacity: 0.18; /* Slightly higher for visibility */
+    z-index: -2 !important; 
+    filter: grayscale(100%) brightness(30%) contrast(120%);
     pointer-events: none;
 }
 
-/* 7. TRANSPARENCY PATCH */
-/* Ensures the map is visible behind messages and sidebar */
+/* 3. DEEP TRANSPARENCY PATCH (The "Curtain" Killer) */
+/* This forces all Streamlit wrappers to be transparent so the BG shows */
+[data-testid="stAppViewContainer"], 
 [data-testid="stVerticalBlock"], 
-[data-testid="stChatMessageContainer"] {
+[data-testid="stChatMessageContainer"],
+[data-testid="stChatMessage"],
+.main, .block-container {
     background-color: transparent !important;
 }
 
+/* 4. SIDEBAR & GREEN ELEMENTS */
+[data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+    background-color: #020502 !important;
+    border-right: 1px solid #00FF41 !important;
+}
+
+/* 5. GLASS MESSAGE BUBBLES */
 [data-testid="stChatMessage"] {
-    background-color: rgba(0, 255, 65, 0.07) !important;
+    background-color: rgba(0, 255, 65, 0.08) !important;
     border: 1px solid rgba(0, 255, 65, 0.2) !important;
-    border-radius: 10px;
+    border-radius: 12px;
+    backdrop-filter: blur(4px);
+    margin-bottom: 15px;
+}
+
+/* 6. COMMAND INPUT (Blackout & Amber) */
+[data-testid="stBottomBlockContainer"] {
+    background-color: #050805 !important;
+    padding-bottom: 2rem;
+}
+
+[data-testid="stChatInputContainer"] {
+    background-color: #111111 !important; 
+    border: 2px solid #FF8C00 !important; 
+    border-radius: 25px !important;
+}
+
+[data-testid="stChatInput"] textarea {
+    color: #FF8C00 !important;
+    font-weight: bold !important;
+    background-color: transparent !important;
+}
+
+/* 7. SCANLINES (Sitting on top of the map) */
+.stApp::after {
+    content: " ";
+    display: block;
+    position: fixed;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    z-index: 10;
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    opacity: 0.3;
 }
