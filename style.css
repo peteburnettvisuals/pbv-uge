@@ -98,3 +98,10 @@ button[title="View fullscreen"] {
     font-size: 1.15rem !important;
     letter-spacing: 0.5px;
 }
+
+/* ADD TACTICAL GLOW TO MAP TOKENS */
+.leaflet-marker-icon {
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.6); /* Gundog Green glow */
+    border: 1px solid #00FF00 !important;
+}
