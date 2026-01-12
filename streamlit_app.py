@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 import google.generativeai as genai
 import re
 import datetime
+import folium
+from streamlit_folium import st_folium
 
 
 def local_css(file_name):
