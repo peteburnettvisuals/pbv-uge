@@ -3,8 +3,8 @@
     <locations>
         <poi id="harbor_master">
             <name>Harbor Master Office</name>
-            <lat>9.3512</lat>
-            <lon>-78.9155</lon>
+            <lat>9.3555</lat>
+            <lon>-79.915</lon>
             <image>loc_harbormaster.png</image>
             <intel>Port control center. High density of comms hardware.</intel>
         </poi>
