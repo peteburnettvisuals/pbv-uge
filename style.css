@@ -87,3 +87,21 @@ h1, h2, h3, .stMetric, p {
     filter: grayscale(0%) brightness(50%);
     pointer-events: none;
 }
+/* 1. MAKE MAIN CONTAINERS TRANSPARENT */
+[data-testid="stVerticalBlock"], 
+[data-testid="stChatMessageContainer"],
+[data-testid="stChatMessage"] {
+    background-color: transparent !important;
+}
+
+/* 2. ADD A SUBTLE GLASS EFFECT TO MESSAGES (Optional but recommended) */
+[data-testid="stChatMessage"] {
+    background-color: rgba(0, 255, 65, 0.05) !important; /* Very faint green tint */
+    border: 1px solid rgba(0, 255, 65, 0.1) !important;
+    backdrop-filter: blur(2px); /* Slight blur to help text legibility */
+}
+
+/* 3. TWEAK THE OVERLAY Z-INDEX */
+.stApp::after {
+    z-index: -1 !important; /* Ensure it stays behind all UI elements */
+}
