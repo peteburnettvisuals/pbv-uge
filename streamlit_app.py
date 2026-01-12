@@ -184,20 +184,38 @@ with st.sidebar:
     st.subheader("📊 EFFICIENCY: " + str(st.session_state.efficiency_score))
 
 # --- MAIN TERMINAL ---
-chat_container = st.container(height=650, border=True)
-with chat_container:
-    # AUTO-SITREP: If there are no messages, trigger the start immediately
-    if not st.session_state.messages:
-        with st.spinner("Establishing Multiplex Link..."):
-            # This triggers the sys_instr and gets the first squad report
-            init_response = get_dm_response("Commander on deck. All units are currently at Costa Verde dock. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know what locations you can see.")
-            st.session_state.messages.append({"role": "assistant", "content": init_response})
-            # st.rerun() is removed here to avoid an infinite loop during initial load
 
-    # Display the comms log
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+# Create the dual-column tactical view
+col1, col2 = st.columns([0.4, 0.6])
+
+with col1:
+    st.markdown("### 📡 COMMS FEED")
+    chat_container = st.container(height=650, border=True)
+    with chat_container:
+        # AUTO-SITREP: If there are no messages, trigger the start immediately
+        if not st.session_state.messages:
+            with st.spinner("Establishing Multiplex Link..."):
+                # This triggers the sys_instr and gets the first squad report
+                init_response = get_dm_response("Commander on deck. All units are currently at Costa Verde dock. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know what locations you can see.")
+                st.session_state.messages.append({"role": "assistant", "content": init_response})
+                # st.rerun() is removed here to avoid an infinite loop during initial load
+
+        # Display the comms log
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+
+with col2:
+    st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
+    # Initialize the Folium Map here
+    m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
+    
+    # Add Squad Markers
+    folium.Marker([9.3512, -79.9145], popup="SAM: Harbormaster", icon=folium.Icon(color='green')).add_to(m)
+    folium.Marker([9.3485, -79.9160], popup="DAVE: Docking Bay 4", icon=folium.Icon(color='green')).add_to(m)
+    folium.Marker([9.3500, -79.9130], popup="MIKE: Server Hub", icon=folium.Icon(color='green')).add_to(m)
+    
+    st_folium(m, use_container_width=True)                
 
 if prompt := st.chat_input("Issue Commands..."):
     # The clock only moves when the Commander acts
