@@ -16,6 +16,28 @@ local_css("style.css")
 # --- CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="UGE: Architect Command")
 
+# 1. ENGINE UTILITIES
+def load_mission(file_path):
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+        mission_map = {}
+        for poi in root.findall('.//poi'):
+            poi_id = poi.get('id')
+            mission_map[poi_id] = {
+                "coords": [float(poi.find('lat').text), float(poi.find('lon').text)],
+                "image": poi.find('image').text,
+                "name": poi.find('name').text,
+                "intel": poi.find('intel').text
+            }
+        return mission_map
+    except Exception as e:
+        st.error(f"Mission Data Corruption: {e}")
+        return {}
+
+# 2. GLOBAL INITIALIZATION
+MISSION_DATA = load_mission('mission_data.xml')
+
 # Unified Session State Initialization
 if "viability" not in st.session_state:
     st.session_state.update({
@@ -209,40 +231,40 @@ with col1:
 
 with col2:
     st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
-    # Initialize the Folium Map here
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # Create custom icons from your URLs
+    # 1. Custom Tokens
     sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
     dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
     mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
 
-    # Add to Puerto de Cristobal Map
-    folium.Marker([9.3512, -79.9145], icon=sam_token, tooltip="SAM: ACTIVE").add_to(m)
-    folium.Marker([9.3485, -79.9160], icon=dave_token, tooltip="DAVE: OVERWATCH").add_to(m)
-    folium.Marker([9.3500, -79.9130], icon=mike_token, tooltip="MIKE: INFIL").add_to(m)
+    # 2. MARK ALL MISSION LOCATIONS (Retires the static polygon)
+    for loc_id, info in MISSION_DATA.items():
+        folium.Circle(
+            location=info["coords"],
+            radius=40,  # 40-meter tactical radius
+            color="#00FF00",
+            weight=1,
+            fill=True,
+            fill_color="#00FF00",
+            fill_opacity=0.1,
+            tooltip=f"POI: {info['name']}"
+        ).add_to(m)
 
-    # 1. Define the coordinates for the restricted area
-    # This covers the primary docks and warehouse hub in Puerto de Cristobal
-    restricted_zone = [
-        [9.3525, -79.9165],
-        [9.3525, -79.9130],
-        [9.3470, -79.9130],
-        [9.3470, -79.9175],
-    ]
-
-    # 2. Add the Polygon to the map
-    folium.Polygon(
-        locations=restricted_zone,
-        color="#FF0000",       # Red border
-        fill=True,
-        fill_color="#FF0000",  # Red fill
-        fill_opacity=0.2,      # Semi-transparent
-        popup="HIGH SECURITY: CRISTOBAL PIERS",
-        tooltip="DETECTION RISK: HIGH"
-    ).add_to(m)
+    # 3. DYNAMIC ASSET PLACEMENT
+    tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+    for unit, icon in tokens.items():
+        current_loc_name = st.session_state.locations.get(unit, "Perimeter")
+        loc_id = current_loc_name.lower().replace(" ", "_")
+        loc_info = MISSION_DATA.get(loc_id, MISSION_DATA.get("perimeter"))
+        
+        folium.Marker(
+            loc_info["coords"], 
+            icon=icon, 
+            tooltip=f"{unit}: {current_loc_name.upper()}"
+        ).add_to(m)
     
-    st_folium(m, use_container_width=True)                
+    st_folium(m, use_container_width=True, key="tactical_map")              
 
 if prompt := st.chat_input("Issue Commands..."):
     # The clock only moves when the Commander acts
