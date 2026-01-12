@@ -9,26 +9,13 @@
     font-family: 'Courier New', Courier, monospace;
 }
 
-.stApp::before {
-    content: " ";
-    display: block;
-    position: absolute;
-    top: 0; left: 0; bottom: 0; right: 0;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
-                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
-    z-index: 10; /* Lowered so it sits on top of bg but under UI */
-    background-size: 100% 3px, 3px 100%;
-    pointer-events: none;
-    opacity: 0.4;
-}
-
 /* 2. SIDEBAR & GREEN PHOSPHOR ELEMENTS */
 [data-testid="stSidebar"] {
     background-color: #020502 !important;
     border-right: 1px solid #00FF41 !important;
 }
 
-h1, h2, h3, .stMetric, p {
+h1, h2, h3, .stMetric, p, span, label {
     color: #00FF41 !important;
     text-shadow: 0 0 10px #00FF41;
 }
@@ -36,32 +23,28 @@ h1, h2, h3, .stMetric, p {
 /* 3. URGENT METRICS: SAFETY ORANGE */
 [data-testid="stMetricValue"] {
     color: #FF8C00 !important; 
-    text-shadow: 0 0 15px #FF8C00, 0 0 5px #FFFFFF;
-    font-weight: bold;
+    text-shadow: 0 0 15px #FF8C00;
 }
 
-[data-testid="stMetricLabel"] {
-    color: #FFA500 !important;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-/* 4. CHAT AREA & MESSAGE BUBBLES (Transparent Glass Look) */
+/* 4. CHAT AREA BLACKOUT & TRANSPARENCY */
+/* This kills the solid black backgrounds so the map shows through */
 [data-testid="stVerticalBlock"], 
-[data-testid="stChatMessageContainer"] {
+[data-testid="stChatMessageContainer"],
+[data-testid="stChatFloatingInputContainer"] {
     background-color: transparent !important;
 }
 
+/* 5. GLASS MESSAGE BOXES */
 [data-testid="stChatMessage"] {
-    background-color: rgba(0, 255, 65, 0.08) !important; /* Fixed green box look */
+    background-color: rgba(0, 255, 65, 0.07) !important;
     border: 1px solid rgba(0, 255, 65, 0.2) !important;
     border-radius: 10px;
     margin-bottom: 10px;
 }
 
-/* 5. COMMAND INPUT (Amber Override) */
-[data-testid="stBottomBlockContainer"], .stChatInput {
-    background-color: #050805 !important;
+/* 6. COMMAND INPUT (AMBER CAPSULE) */
+[data-testid="stBottomBlockContainer"] {
+    background-color: transparent !important;
 }
 
 [data-testid="stChatInputContainer"] {
@@ -72,14 +55,14 @@ h1, h2, h3, .stMetric, p {
 }
 
 [data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important; /* FIXED: Now Amber and visible */
+    color: #FF8C00 !important; /* Visible Amber text */
     font-size: 1.1rem !important;
     font-weight: bold !important;
     background-color: transparent !important;
     caret-color: #FF8C00 !important;
 }
 
-/* 6. TACTICAL SATELLITE OVERLAY */
+/* 7. TACTICAL SATELLITE OVERLAY */
 .stApp::after {
     content: "";
     position: fixed;
@@ -88,8 +71,22 @@ h1, h2, h3, .stMetric, p {
     background-image: url("data:image/jpeg;base64,YOUR_IMAGE_STR");
     background-size: cover;
     background-position: center;
-    opacity: 0.15; /* Semicolon added, opacity tuned for legibility */
-    z-index: -1 !important; /* Behind everything */
+    opacity: 0.15; /* Semicolon added to prevent block failure */
+    z-index: -1 !important; /* Sits behind the UI */
     filter: grayscale(100%) brightness(30%);
     pointer-events: none;
+}
+
+/* 8. CRT SCANLINE OVERLAY */
+.stApp::before {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    z-index: 10;
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    opacity: 0.4;
 }
