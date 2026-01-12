@@ -3,23 +3,12 @@ import xml.etree.ElementTree as ET
 import google.generativeai as genai
 import re
 import datetime
-import base64
-import os
+
 
 def local_css(file_name):
     with open(file_name) as f:
-        css_content = f.read()
-    
-    # Check for background.jpg (the new tactical satellite feed)
-    if os.path.exists("background.jpg"):
-        with open("background.jpg", "rb") as img_file:
-            b64_string = base64.b64encode(img_file.read()).decode()
-            # Replace the placeholder in your CSS
-            css_content = css_content.replace("YOUR_IMAGE_STR", b64_string)
-            
-    st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-# Call before your UI layout
 local_css("style.css")
 
 # --- CONFIGURATION & INITIALIZATION ---

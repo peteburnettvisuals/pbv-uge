@@ -27,7 +27,6 @@ h1, h2, h3, .stMetric, p, span, label {
 }
 
 /* 4. TOTAL BLACKOUT: BOTTOM & FOOTER */
-/* This specifically kills the white bar that appears under the input capsule */
 [data-testid="stBottomBlockContainer"], 
 .stChatInput, 
 div[data-testid="stChatInput"],
@@ -53,25 +52,27 @@ header {
     caret-color: #FF8C00 !important;
 }
 
-/* 6. TACTICAL SATELLITE OVERLAY (Fixed Selector) */
-/* We attach this to the stApp so it stays behind the scrollable chat */
+/* 6. TACTICAL SATELLITE OVERLAY (Hosted URL Fix) */
 .stApp::after {
     content: "";
     position: fixed;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
-    background-image: url("data:image/jpeg;base64,YOUR_IMAGE_STR");
+    background-image: url("https://peteburnettvisuals.com/wp-content/uploads/2026/01/background.jpg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     opacity: 0.15; 
-    z-index: -1 !important; /* Forces it behind all main UI elements */
-    filter: grayscale(100%) brightness(30%);
+    z-index: -1 !important; 
+    filter: grayscale(100%) brightness(35%);
     pointer-events: none;
 }
 
-/* 7. TRANSPARENCY PATCH */
-/* Ensures the map is visible behind messages and sidebar */
+/* 7. THE CURTAIN KILLER (Transparency Patch) */
+/* These specific selectors remove the black layers hiding your background */
+[data-testid="stAppViewContainer"],
+.main,
+.block-container,
 [data-testid="stVerticalBlock"], 
 [data-testid="stChatMessageContainer"] {
     background-color: transparent !important;
@@ -81,4 +82,5 @@ header {
     background-color: rgba(0, 255, 65, 0.07) !important;
     border: 1px solid rgba(0, 255, 65, 0.2) !important;
     border-radius: 10px;
+    backdrop-filter: blur(2px); /* Frost effect for tactical depth */
 }
