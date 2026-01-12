@@ -85,3 +85,16 @@ button[title="View fullscreen"] {
     pointer-events: none !important;
     cursor: default !important;
 }
+
+/* INCREASE CHAT FONT SIZE */
+.chat-message p {
+    font-size: 1.1rem !important; /* Adjust from 1.0 to 1.1 or 1.2 for desired 'tad' increase */
+    line-height: 1.5 !important;  /* Improves readability between lines */
+    font-weight: 500 !important;   /* Slightly bolder for better contrast */
+}
+
+/* TARGETS THE SQUAD NAME IN BRACKETS */
+.chat-message b {
+    font-size: 1.15rem !important;
+    letter-spacing: 0.5px;
+}
