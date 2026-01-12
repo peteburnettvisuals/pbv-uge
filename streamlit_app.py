@@ -238,17 +238,30 @@ with col2:
     dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
     mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
 
-    # 2. MARK ALL MISSION LOCATIONS (Retires the static polygon)
+    # 2. MARK ALL MISSION LOCATIONS WITH CLICKABLE INTEL
     for loc_id, info in MISSION_DATA.items():
+        # Fetch the signed URL from your GCS bucket
+        loc_img_url = get_image_url(info["image"])
+        
+        # Build the HTML content for the Popup
+        popup_html = f"""
+            <div style="width: 200px; font-family: 'Courier New', Courier, monospace;">
+                <h4 style="color: #00FF00; margin-bottom: 5px;">{info['name'].upper()}</h4>
+                <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00; border-radius: 4px;">
+                <p style="font-size: 10px; color: #333; margin-top: 5px;">{info['intel']}</p>
+            </div>
+        """
+        
         folium.Circle(
             location=info["coords"],
-            radius=40,  # 40-meter tactical radius
+            radius=40,
             color="#00FF00",
             weight=1,
             fill=True,
             fill_color="#00FF00",
             fill_opacity=0.1,
-            tooltip=f"POI: {info['name']}"
+            popup=folium.Popup(popup_html, max_width=250), # The clickable trigger
+            tooltip=f"INSPECT: {info['name']}"
         ).add_to(m)
 
     # 3. DYNAMIC ASSET PLACEMENT
