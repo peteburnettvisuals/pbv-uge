@@ -16,7 +16,7 @@
     top: 0; left: 0; bottom: 0; right: 0;
     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
                 linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
-    z-index: 9999;
+    z-index: 10; /* Lowered so it sits on top of bg but under UI */
     background-size: 100% 3px, 3px 100%;
     pointer-events: none;
     opacity: 0.4;
@@ -33,11 +33,6 @@ h1, h2, h3, .stMetric, p {
     text-shadow: 0 0 10px #00FF41;
 }
 
-.stProgress > div > div > div > div {
-    background-color: #00FF41 !important;
-    box-shadow: 0 0 15px #00FF41;
-}
-
 /* 3. URGENT METRICS: SAFETY ORANGE */
 [data-testid="stMetricValue"] {
     color: #FF8C00 !important; 
@@ -51,57 +46,50 @@ h1, h2, h3, .stMetric, p {
     letter-spacing: 1px;
 }
 
-/* ELIMINATE WHITE GHOSTING */
-[data-testid="stBottomBlockContainer"], .stChatInput, div[data-testid="stChatInput"] {
+/* 4. CHAT AREA & MESSAGE BUBBLES (Transparent Glass Look) */
+[data-testid="stVerticalBlock"], 
+[data-testid="stChatMessageContainer"] {
+    background-color: transparent !important;
+}
+
+[data-testid="stChatMessage"] {
+    background-color: rgba(0, 255, 65, 0.08) !important; /* Fixed green box look */
+    border: 1px solid rgba(0, 255, 65, 0.2) !important;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+/* 5. COMMAND INPUT (Amber Override) */
+[data-testid="stBottomBlockContainer"], .stChatInput {
     background-color: #050805 !important;
 }
 
-/* GRAPHITE COMMAND CAPSULE */
 [data-testid="stChatInputContainer"] {
-    background-color: #111111 !important; /* High legibility, zero glare */
+    background-color: #111111 !important; 
     border: 2px solid #FF8C00 !important; 
     border-radius: 25px !important;
     box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
 }
 
-/* AMBER COMMAND TEXT */
 [data-testid="stChatInput"] textarea {
-    color: #111111 !important; 
+    color: #FF8C00 !important; /* FIXED: Now Amber and visible */
     font-size: 1.1rem !important;
     font-weight: bold !important;
     background-color: transparent !important;
     caret-color: #FF8C00 !important;
 }
 
-/* 5. TACTICAL SATELLITE OVERLAY (Simplified Selector) */
+/* 6. TACTICAL SATELLITE OVERLAY */
 .stApp::after {
     content: "";
-    position: fixed; /* Fixed ensures it stays behind the scroll */
+    position: fixed;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
     background-image: url("data:image/jpeg;base64,YOUR_IMAGE_STR");
     background-size: cover;
     background-position: center;
-    opacity: 0.7 
-    z-index: -1; /* Sits behind everything but the scanlines */
-    filter: grayscale(0%) brightness(50%);
+    opacity: 0.15; /* Semicolon added, opacity tuned for legibility */
+    z-index: -1 !important; /* Behind everything */
+    filter: grayscale(100%) brightness(30%);
     pointer-events: none;
-}
-/* 1. MAKE MAIN CONTAINERS TRANSPARENT */
-[data-testid="stVerticalBlock"], 
-[data-testid="stChatMessageContainer"],
-[data-testid="stChatMessage"] {
-    background-color: transparent !important;
-}
-
-/* 2. ADD A SUBTLE GLASS EFFECT TO MESSAGES (Optional but recommended) */
-[data-testid="stChatMessage"] {
-    background-color: rgba(0, 255, 65, 0.05) !important; /* Very faint green tint */
-    border: 1px solid rgba(0, 255, 65, 0.1) !important;
-    backdrop-filter: blur(2px); /* Slight blur to help text legibility */
-}
-
-/* 3. TWEAK THE OVERLAY Z-INDEX */
-.stApp::after {
-    z-index: -1 !important; /* Ensure it stays behind all UI elements */
 }
