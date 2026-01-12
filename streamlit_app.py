@@ -212,10 +212,15 @@ with col2:
     # Initialize the Folium Map here
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # Add Squad Markers
-    folium.Marker([9.3512, -79.9145], popup="SAM: Harbormaster", icon=folium.Icon(color='green')).add_to(m)
-    folium.Marker([9.3485, -79.9160], popup="DAVE: Docking Bay 4", icon=folium.Icon(color='green')).add_to(m)
-    folium.Marker([9.3500, -79.9130], popup="MIKE: Server Hub", icon=folium.Icon(color='green')).add_to(m)
+    # Create custom icons from your URLs
+    sam_token = folium.CustomIcon("URL_TO_SAM_PNG", icon_size=(45, 45))
+    dave_token = folium.CustomIcon("URL_TO_DAVE_PNG", icon_size=(45, 45))
+    mike_token = folium.CustomIcon("URL_TO_MIKE_PNG", icon_size=(45, 45))
+
+    # Add to Puerto de Cristobal Map
+    folium.Marker([9.3512, -79.9145], icon=sam_token, tooltip="SAM: ACTIVE").add_to(m)
+    folium.Marker([9.3485, -79.9160], icon=dave_token, tooltip="DAVE: OVERWATCH").add_to(m)
+    folium.Marker([9.3500, -79.9130], icon=mike_token, tooltip="MIKE: INFIL").add_to(m)
     
     st_folium(m, use_container_width=True)                
 
