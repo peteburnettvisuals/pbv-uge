@@ -213,9 +213,9 @@ with col2:
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
     # Create custom icons from your URLs
-    sam_token = folium.CustomIcon("URL_TO_SAM_PNG", icon_size=(45, 45))
-    dave_token = folium.CustomIcon("URL_TO_DAVE_PNG", icon_size=(45, 45))
-    mike_token = folium.CustomIcon("URL_TO_MIKE_PNG", icon_size=(45, 45))
+    sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map.png", icon_size=(45, 45))
+    dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map.png", icon_size=(45, 45))
+    mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map.png", icon_size=(45, 45))
 
     # Add to Puerto de Cristobal Map
     folium.Marker([9.3512, -79.9145], icon=sam_token, tooltip="SAM: ACTIVE").add_to(m)
