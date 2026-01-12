@@ -73,3 +73,15 @@ header {
     border-radius: 10px;
     backdrop-filter: blur(2px); /* Frost effect for tactical depth */
 }
+
+/* DISABLE FULL SCREEN ON IMAGES */
+/* This hides the "Expand" button that appears on hover */
+button[title="View fullscreen"] {
+    display: none !important;
+}
+
+/* This disables clicking on the image itself to prevent opening it */
+[data-testid="stImage"] img {
+    pointer-events: none !important;
+    cursor: default !important;
+}
