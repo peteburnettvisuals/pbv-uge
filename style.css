@@ -4,6 +4,10 @@
 
 /* 1. GLOBAL UI & CRT EFFECTS */
 .stApp {
+    background-image: url("https://peteburnettvisuals.com/wp-content/uploads/2026/01/background.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     color: #00FF41 !important;
     font-family: 'Courier New', Courier, monospace;
 }
