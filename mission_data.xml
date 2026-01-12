@@ -17,8 +17,8 @@
         </poi>
         <poi id="the_freighter">
             <name>The Freighter</name>
-            <lat>9.3482</lat>
-            <lon>-79.9172</lon>
+            <lat>9.353611</lat>
+            <lon>-79.910833</lon>
             <image>loc_freighter.png</image>
             <intel>MV Panamax. Target of interest.</intel>
         </poi>
