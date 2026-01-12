@@ -82,8 +82,8 @@ h1, h2, h3, .stMetric, p {
     background-image: url("data:image/jpeg;base64,YOUR_IMAGE_STR");
     background-size: cover;
     background-position: center;
-    opacity: 0.5 
+    opacity: 0.7 
     z-index: -1; /* Sits behind everything but the scanlines */
-    filter: grayscale(100%) brightness(30%);
+    filter: grayscale(0%) brightness(50%);
     pointer-events: none;
 }
