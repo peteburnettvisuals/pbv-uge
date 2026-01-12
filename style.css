@@ -56,21 +56,7 @@ header {
     caret-color: #FF8C00 !important;
 }
 
-/* 6. TACTICAL SATELLITE OVERLAY (Hosted URL Fix) */
-.stApp::after {
-    content: "";
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background-image: url("https://peteburnettvisuals.com/wp-content/uploads/2026/01/background.jpg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    opacity: 0.9; 
-    z-index: -1 !important; 
-    filter: grayscale(0%) brightness(90%);
-    pointer-events: none;
-}
+
 
 /* 7. THE CURTAIN KILLER (Transparency Patch) */
 /* These specific selectors remove the black layers hiding your background */
