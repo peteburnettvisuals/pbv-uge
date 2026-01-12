@@ -233,12 +233,17 @@ with col1:
 with col2:
     st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
     
-    # Initialize map
+    # 1. DEFINE ASSETS IMMEDIATELY (Fixes NameError)
+    sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+    dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+    mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
+    
+    # 2. INITIALIZE MAP
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # 2. MARK MISSION LOCATIONS (Optimized)
+    # 3. MARK MISSION LOCATIONS (Cached & Clickable)
     for loc_id, info in MISSION_DATA.items():
-        # This is now cached and won't trigger a re-render loop
+        # Using the cached function to prevent the refresh loop
         loc_img_url = get_image_url(info["image"])
         
         popup_html = f"""
@@ -249,6 +254,7 @@ with col2:
             </div>
         """
         
+        # Circle for visual demarkation
         folium.Circle(
             location=info["coords"],
             radius=50,
@@ -260,21 +266,20 @@ with col2:
             interactive=False 
         ).add_to(m)
 
+        # Invisible Marker for reliable popup triggering
         folium.Marker(
             location=info["coords"],
-            icon=folium.DivIcon(html=f"""<div style="width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;"></div>"""), 
+            icon=folium.DivIcon(html="""<div style="width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;"></div>"""), 
             popup=folium.Popup(popup_html, max_width=250),
             tooltip=f"INSPECT: {info['name']}"
         ).add_to(m)
 
-    # 3. DYNAMIC ASSET PLACEMENT
+    # 4. DYNAMIC SQUAD PLACEMENT (With Offsets)
     tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
-    
-    # Define offsets (approx 10-15 meters in lat/long degrees)
     offsets = {
-        "SAM":  [0.00015, 0.00000],  # Slightly North
-        "DAVE": [-0.00010, 0.00015], # Slightly South-East
-        "MIKE": [-0.00010, -0.00015] # Slightly South-West
+        "SAM":  [0.00015, 0.00000], 
+        "DAVE": [-0.00010, 0.00015],
+        "MIKE": [-0.00010, -0.00015]
     }
 
     for unit, icon in tokens.items():
@@ -282,7 +287,6 @@ with col2:
         loc_id = current_loc_name.lower().replace(" ", "_")
         loc_info = MISSION_DATA.get(loc_id, MISSION_DATA.get("perimeter"))
         
-        # Apply the offset to the base coordinates
         base_coords = loc_info["coords"]
         offset = offsets.get(unit, [0, 0])
         final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
@@ -293,7 +297,8 @@ with col2:
             tooltip=f"{unit}: {current_loc_name.upper()}"
         ).add_to(m)
     
-    st_folium(m, use_container_width=True, key="tactical_map_v1", returned_objects=[])         
+    # 5. RENDER (Stability settings)
+    st_folium(m, use_container_width=True, key="tactical_map_v2", returned_objects=[])       
 
 if prompt := st.chat_input("Issue Commands..."):
     # The clock only moves when the Commander acts
