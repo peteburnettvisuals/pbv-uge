@@ -136,7 +136,7 @@ with st.sidebar:
     st.header("🦅 GUNDOG C2")
     
     # Dual-Metric HUD
-    st.progress(st.session_state.viability / 100, text=f"PLUASIBLE DENIABILITY: {st.session_state.viability}%")
+    st.progress(st.session_state.viability / 100, text=f"PLAUSIBLE DENIABILITY: {st.session_state.viability}%")
     
     avg_morale = sum([100 - (t * 10) for t in st.session_state.idle_turns.values()]) / 3
     st.progress(avg_morale / 100, text=f"SQUAD MORALE: {int(avg_morale)}%")
