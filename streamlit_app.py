@@ -247,10 +247,10 @@ with col2:
         loc_img_url = get_image_url(info["image"])
         
         popup_html = f"""
-            <div style="width: 350px; font-family: 'Courier New'; background-color: #000; padding: 10px; border: 1px solid #00FF00;">
-                <h4 style="color: #00FF00; margin-top: 0;">{info['name'].upper()}</h4>
+            <div style="width: 200px; font-family: 'Courier New'; background-color: #fff; padding: 10px; border: 1px solid #00FF00;">
+                <h4 style="color: #111111; margin-top: 0;">{info['name'].upper()}</h4>
                 <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
-                <p style="font-size: 11px; color: #00FF00; margin-top: 5px;">{info['intel']}</p>
+                <p style="font-size: 11px; color: #111111; margin-top: 5px;">{info['intel']}</p>
             </div>
         """
         
