@@ -10,7 +10,6 @@
 }
 
 /* 2. THE SATELLITE OVERLAY (Primary Fix) */
-/* We move this to ::before to ensure it's the very first layer */
 .stApp::before {
     content: "";
     position: fixed;
@@ -20,14 +19,14 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.18; /* Slightly higher for visibility */
+    opacity: 0.18; /* Higher for a strong tactical feel */
     z-index: -2 !important; 
-    filter: grayscale(100%) brightness(30%) contrast(120%);
+    filter: grayscale(100%) brightness(35%) contrast(120%);
     pointer-events: none;
 }
 
 /* 3. DEEP TRANSPARENCY PATCH (The "Curtain" Killer) */
-/* This forces all Streamlit wrappers to be transparent so the BG shows */
+/* This kills the solid black walls that hide the background map */
 [data-testid="stAppViewContainer"], 
 [data-testid="stVerticalBlock"], 
 [data-testid="stChatMessageContainer"],
@@ -64,12 +63,12 @@
 }
 
 [data-testid="stChatInput"] textarea {
-    color: #FF8C00 !important;
+    color: #FF8C00 !important; /* Visible Amber text */
     font-weight: bold !important;
     background-color: transparent !important;
 }
 
-/* 7. SCANLINES (Sitting on top of the map) */
+/* 7. SCANLINES */
 .stApp::after {
     content: " ";
     display: block;
