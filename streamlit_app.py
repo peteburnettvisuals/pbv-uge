@@ -71,6 +71,7 @@ def get_gcs_client():
     credentials = service_account.Credentials.from_service_account_info(creds_info)
     return storage.Client(credentials=credentials, project=creds_info["project_id"])
 
+@st.cache_data(ttl=3600) # Cache for 1 hour to match the signed URL expiration
 def get_image_url(filename):
     if not filename: return ""
     try:
@@ -231,42 +232,37 @@ with col1:
 
 with col2:
     st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
+    
+    # Initialize map
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # 1. Custom Tokens
-    sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
-    dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
-    mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
-
-    # 2. MARK ALL MISSION LOCATIONS WITH CLICKABLE INTEL
+    # 2. MARK MISSION LOCATIONS (Optimized)
     for loc_id, info in MISSION_DATA.items():
+        # This is now cached and won't trigger a re-render loop
         loc_img_url = get_image_url(info["image"])
         
-        # Build the HTML content for the Popup
         popup_html = f"""
-            <div style="width: 200px; font-family: 'Courier New', Courier, monospace; background-color: #000; padding: 10px; border: 1px solid #00FF00;">
+            <div style="width: 200px; font-family: 'Courier New'; background-color: #000; padding: 10px; border: 1px solid #00FF00;">
                 <h4 style="color: #00FF00; margin-top: 0;">{info['name'].upper()}</h4>
                 <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
                 <p style="font-size: 11px; color: #00FF00; margin-top: 5px;">{info['intel']}</p>
             </div>
         """
         
-        # Draw the visual circle (Aesthetic only)
         folium.Circle(
             location=info["coords"],
-            radius=50, # Slightly larger for easier clicking
+            radius=50,
             color="#00FF00",
             weight=1,
             fill=True,
             fill_color="#00FF00",
             fill_opacity=0.1,
-            interactive=False # Let the marker underneath handle the click
+            interactive=False 
         ).add_to(m)
 
-        # Place a Marker to handle the actual Popup trigger
         folium.Marker(
             location=info["coords"],
-            icon=folium.DivIcon(html=f"""<div style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px;"></div>"""), # Invisible div
+            icon=folium.DivIcon(html=f"""<div style="width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;"></div>"""), 
             popup=folium.Popup(popup_html, max_width=250),
             tooltip=f"INSPECT: {info['name']}"
         ).add_to(m)
@@ -297,7 +293,7 @@ with col2:
             tooltip=f"{unit}: {current_loc_name.upper()}"
         ).add_to(m)
     
-    st_folium(m, use_container_width=True, key="tactical_map")              
+    st_folium(m, use_container_width=True, key="tactical_map_v1", returned_objects=[])         
 
 if prompt := st.chat_input("Issue Commands..."):
     # The clock only moves when the Commander acts
