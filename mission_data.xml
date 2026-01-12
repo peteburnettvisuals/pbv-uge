@@ -5,21 +5,21 @@
             <name>Harbor Master Office</name>
             <lat>9.3555</lat>
             <lon>-79.915</lon>
-            <image>loc_harbormaster.png</image>
+            <image>loc_harbormaster.jpg</image>
             <intel>Port control center. High density of comms hardware.</intel>
         </poi>
         <poi id="docking_bay_4">
             <name>Docking Bay 4</name>
             <lat>9.3495</lat>
             <lon>-79.9165</lon>
-            <image>loc_dock4.png</image>
+            <image>loc_dock4.jpg</image>
             <intel>Industrial loading zone. Good for heavy cover.</intel>
         </poi>
         <poi id="the_freighter">
             <name>The Freighter</name>
             <lat>9.353868</lat>
             <lon>-79.912613</lon>
-            <image>loc_freighter.png</image>
+            <image>loc_freighter.jpg</image>
             <intel>MV Panamax. Target of interest.</intel>
         </poi>
         <poi id="the_rusty_anchor">
@@ -33,49 +33,49 @@
             <name>North Perimeter</name>
             <lat>9.3540</lat>
             <lon>-79.9140</lon>
-            <image>loc_perimeter.png</image>
+            <image>loc_n_perimeter.jpg</image>
             <intel>Chain-link boundary and primary vehicle gate.</intel>
         </poi>
         <poi id="perimeter">
             <name>Perimeter</name>
             <lat>9.3540</lat>
             <lon>-79.9140</lon>
-            <image>loc_perimeter.png</image>
+            <image>loc_perimeter.jpg</image>
             <intel>Initial insertion point for the squad.</intel>
         </poi>
         <poi id="container_stacks">
             <name>Container Stacks</name>
             <lat>9.3505</lat>
             <lon>-79.9155</lon>
-            <image>loc_stacks.png</image>
+            <image>loc_stacks.jpg</image>
             <intel>Vertical maze of containers. Stealth optimal.</intel>
         </poi>
         <poi id="maintenance_hangar">
             <name>Maintenance Hangar</name>
             <lat>9.3488</lat>
             <lon>-79.9135</lon>
-            <image>loc_hangar.png</image>
+            <image>loc_hangar.jpg</image>
             <intel>Equipment repair facility. Technical assets present.</intel>
         </poi>
         <poi id="customs_checkpoint">
             <name>Customs Checkpoint</name>
             <lat>9.3530</lat>
             <lon>-79.9120</lon>
-            <image>loc_customs.png</image>
+            <image>loc_customs.jpg</image>
             <intel>High-risk administrative bottleneck.</intel>
         </poi>
         <poi id="fueling_station">
             <name>Fueling Station</name>
             <lat>9.3475</lat>
             <lon>-79.9150</lon>
-            <image>loc_fuel.png</image>
+            <image>loc_fuel.jpg</image>
             <intel>Volatile area. Useful for structural sabotage.</intel>
         </poi>
         <poi id="town_plaza">
             <name>Town Plaza</name>
             <lat>9.3560</lat>
             <lon>-79.9090</lon>
-            <image>loc_plaza.png</image>
+            <image>loc_plaza.jpg</image>
             <intel>Public square. Primary exfiltration point.</intel>
         </poi>
     </locations>
