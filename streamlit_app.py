@@ -240,27 +240,34 @@ with col2:
 
     # 2. MARK ALL MISSION LOCATIONS WITH CLICKABLE INTEL
     for loc_id, info in MISSION_DATA.items():
-        # Fetch the signed URL from your GCS bucket
         loc_img_url = get_image_url(info["image"])
         
         # Build the HTML content for the Popup
         popup_html = f"""
-            <div style="width: 200px; font-family: 'Courier New', Courier, monospace;">
-                <h4 style="color: #00FF00; margin-bottom: 5px;">{info['name'].upper()}</h4>
-                <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00; border-radius: 4px;">
-                <p style="font-size: 10px; color: #333; margin-top: 5px;">{info['intel']}</p>
+            <div style="width: 200px; font-family: 'Courier New', Courier, monospace; background-color: #000; padding: 10px; border: 1px solid #00FF00;">
+                <h4 style="color: #00FF00; margin-top: 0;">{info['name'].upper()}</h4>
+                <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
+                <p style="font-size: 11px; color: #00FF00; margin-top: 5px;">{info['intel']}</p>
             </div>
         """
         
+        # Draw the visual circle (Aesthetic only)
         folium.Circle(
             location=info["coords"],
-            radius=40,
+            radius=50, # Slightly larger for easier clicking
             color="#00FF00",
             weight=1,
             fill=True,
             fill_color="#00FF00",
             fill_opacity=0.1,
-            popup=folium.Popup(popup_html, max_width=250), # The clickable trigger
+            interactive=False # Let the marker underneath handle the click
+        ).add_to(m)
+
+        # Place a Marker to handle the actual Popup trigger
+        folium.Marker(
+            location=info["coords"],
+            icon=folium.DivIcon(html=f"""<div style="width: 100px; height: 100px; margin-left: -50px; margin-top: -50px;"></div>"""), # Invisible div
+            popup=folium.Popup(popup_html, max_width=250),
             tooltip=f"INSPECT: {info['name']}"
         ).add_to(m)
 
