@@ -1,0 +1,82 @@
+<mission id="cristobal_01">
+    <theater>Puerto de Cristobal, Panama</theater>
+    <locations>
+        <poi id="harbor_master">
+            <name>Harbor Master Office</name>
+            <lat>9.3512</lat>
+            <lon>-79.9145</lon>
+            <image>loc_harbormaster.png</image>
+            <intel>Port control center. High density of comms hardware.</intel>
+        </poi>
+        <poi id="docking_bay_4">
+            <name>Docking Bay 4</name>
+            <lat>9.3495</lat>
+            <lon>-79.9165</lon>
+            <image>loc_dock4.png</image>
+            <intel>Industrial loading zone. Good for heavy cover.</intel>
+        </poi>
+        <poi id="the_freighter">
+            <name>The Freighter</name>
+            <lat>9.3482</lat>
+            <lon>-79.9172</lon>
+            <image>loc_freighter.png</image>
+            <intel>MV Panamax. Target of interest.</intel>
+        </poi>
+        <poi id="the_rusty_anchor">
+            <name>The Rusty Anchor</name>
+            <lat>9.3525</lat>
+            <lon>-79.9105</lon>
+            <image>loc_taverna.png</image>
+            <intel>Local dive bar. Low profile zone.</intel>
+        </poi>
+        <poi id="north_perimeter">
+            <name>North Perimeter</name>
+            <lat>9.3540</lat>
+            <lon>-79.9140</lon>
+            <image>loc_perimeter.png</image>
+            <intel>Chain-link boundary and primary vehicle gate.</intel>
+        </poi>
+        <poi id="perimeter">
+            <name>Perimeter</name>
+            <lat>9.3540</lat>
+            <lon>-79.9140</lon>
+            <image>loc_perimeter.png</image>
+            <intel>Initial insertion point for the squad.</intel>
+        </poi>
+        <poi id="container_stacks">
+            <name>Container Stacks</name>
+            <lat>9.3505</lat>
+            <lon>-79.9155</lon>
+            <image>loc_stacks.png</image>
+            <intel>Vertical maze of containers. Stealth optimal.</intel>
+        </poi>
+        <poi id="maintenance_hangar">
+            <name>Maintenance Hangar</name>
+            <lat>9.3488</lat>
+            <lon>-79.9135</lon>
+            <image>loc_hangar.png</image>
+            <intel>Equipment repair facility. Technical assets present.</intel>
+        </poi>
+        <poi id="customs_checkpoint">
+            <name>Customs Checkpoint</name>
+            <lat>9.3530</lat>
+            <lon>-79.9120</lon>
+            <image>loc_customs.png</image>
+            <intel>High-risk administrative bottleneck.</intel>
+        </poi>
+        <poi id="fueling_station">
+            <name>Fueling Station</name>
+            <lat>9.3475</lat>
+            <lon>-79.9150</lon>
+            <image>loc_fuel.png</image>
+            <intel>Volatile area. Useful for structural sabotage.</intel>
+        </poi>
+        <poi id="town_plaza">
+            <name>Town Plaza</name>
+            <lat>9.3560</lat>
+            <lon>-79.9090</lon>
+            <image>loc_plaza.png</image>
+            <intel>Public square. Primary exfiltration point.</intel>
+        </poi>
+    </locations>
+</mission>

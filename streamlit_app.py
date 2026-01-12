@@ -253,13 +253,26 @@ with col2:
 
     # 3. DYNAMIC ASSET PLACEMENT
     tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+    
+    # Define offsets (approx 10-15 meters in lat/long degrees)
+    offsets = {
+        "SAM":  [0.00015, 0.00000],  # Slightly North
+        "DAVE": [-0.00010, 0.00015], # Slightly South-East
+        "MIKE": [-0.00010, -0.00015] # Slightly South-West
+    }
+
     for unit, icon in tokens.items():
         current_loc_name = st.session_state.locations.get(unit, "Perimeter")
         loc_id = current_loc_name.lower().replace(" ", "_")
         loc_info = MISSION_DATA.get(loc_id, MISSION_DATA.get("perimeter"))
         
+        # Apply the offset to the base coordinates
+        base_coords = loc_info["coords"]
+        offset = offsets.get(unit, [0, 0])
+        final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
+        
         folium.Marker(
-            loc_info["coords"], 
+            final_coords, 
             icon=icon, 
             tooltip=f"{unit}: {current_loc_name.upper()}"
         ).add_to(m)
