@@ -221,6 +221,26 @@ with col2:
     folium.Marker([9.3512, -79.9145], icon=sam_token, tooltip="SAM: ACTIVE").add_to(m)
     folium.Marker([9.3485, -79.9160], icon=dave_token, tooltip="DAVE: OVERWATCH").add_to(m)
     folium.Marker([9.3500, -79.9130], icon=mike_token, tooltip="MIKE: INFIL").add_to(m)
+
+    # 1. Define the coordinates for the restricted area
+    # This covers the primary docks and warehouse hub in Puerto de Cristobal
+    restricted_zone = [
+        [9.3525, -79.9165],
+        [9.3525, -79.9130],
+        [9.3470, -79.9130],
+        [9.3470, -79.9175],
+    ]
+
+    # 2. Add the Polygon to the map
+    folium.Polygon(
+        locations=restricted_zone,
+        color="#FF0000",       # Red border
+        fill=True,
+        fill_color="#FF0000",  # Red fill
+        fill_opacity=0.2,      # Semi-transparent
+        popup="HIGH SECURITY: CRISTOBAL PIERS",
+        tooltip="DETECTION RISK: HIGH"
+    ).add_to(m)
     
     st_folium(m, use_container_width=True)                
 
