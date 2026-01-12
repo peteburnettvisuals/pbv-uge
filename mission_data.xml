@@ -36,7 +36,7 @@
             <image>loc_n_perimeter.jpg</image>
             <intel>Chain-link boundary and primary vehicle gate.</intel>
         </poi>
-        <poi id="south_perimeter">
+        <poi id="perimeter">
             <name>South Perimeter</name>
             <lat>9.350765</lat>
             <lon>-79.905095</lon>
