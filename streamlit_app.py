@@ -60,6 +60,9 @@ if "viability" not in st.session_state:
         "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
     })
 
+if "discovered_locations" not in st.session_state:
+    st.session_state.discovered_locations = []
+
 # --- UTILITY FUNCTIONS ---
 BUCKET_NAME = "uge-repository-cu32"
 
@@ -143,13 +146,37 @@ def get_dm_response(prompt):
             unit, loc = pair.split("=")
             st.session_state.locations[unit] = loc.strip()
 
+    # A1. DISCOVERY LOGIC
+    for unit, loc_name in st.session_state.locations.items():
+        # Find the POI ID for this location name
+        target_poi_id = next((pid for pid, info in MISSION_DATA.items() if info['name'] == loc_name), None)
+        
+        if target_poi_id and target_poi_id not in st.session_state.discovered_locations:
+            # Mark as discovered
+            st.session_state.discovered_locations.append(target_poi_id)
+            
+            # Fetch the image and intel
+            poi_info = MISSION_DATA[target_poi_id]
+            img_url = get_image_url(poi_info['image'])
+            
+            # Inject a "Recon Report" into the chat history
+            recon_msg = {
+                "role": "assistant", 
+                "content": f"🖼️ **RECON UPLINK: {loc_name.upper()}**\n\n{poi_info['intel']}\n\n![{loc_name}]({img_url})"
+            }
+            st.session_state.messages.append(recon_msg)
+            st.toast(f"📡 New Intel: {loc_name}")
+
     # B. Objective Parsing (Suffix Tag)
-    obj_matches = re.findall(r"\[OBJ_DATA: (obj_\w+)=TRUE\]", response_text)
-    for obj_id in obj_matches:
+    # Ensure the AI knows it must report Objective status too
+    # Add this to your OBJ_DATA parsing in Step 7
+    obj_data_matches = re.findall(r"\[OBJ_DATA: (obj_\w+)=TRUE\]", response_text)
+    
+    for obj_id in obj_data_matches:
         if obj_id in st.session_state.objectives and not st.session_state.objectives[obj_id]:
             st.session_state.objectives[obj_id] = True
-            st.toast(f"✅ TASK COMPLETE: {obj_id.upper()}")
-            st.session_state.efficiency_score += 100
+            st.toast(f"🎯 OBJECTIVE REACHED: {obj_id.upper()}")
+            st.session_state.efficiency_score += 150 # Bonus for clean execution
 
     # C. Metier/Idle Check (Keep turns advancing)
     for unit in ["SAM", "DAVE", "MIKE"]:
@@ -161,6 +188,8 @@ def get_dm_response(prompt):
     # D. Clean the Response for UI
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     return clean_response
+
+
 
 # --- UI LAYOUT ---
 with st.sidebar:
@@ -251,37 +280,39 @@ with col2:
     # 2. INITIALIZE MAP
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # 3. MARK MISSION LOCATIONS (Cached & Clickable)
+    # 3. MARK MISSION LOCATIONS (Fog of War)
     for loc_id, info in MISSION_DATA.items():
-        # Using the cached function to prevent the refresh loop
-        loc_img_url = get_image_url(info["image"])
+        is_discovered = loc_id in st.session_state.discovered_locations
         
-        popup_html = f"""
-            <div style="width: 200px; background-color: #fff; padding: 10px; border: 1px solid #fff;">
-                <h4 style="color: #111111; margin-top: 0;">{info['name'].upper()}</h4>
-                <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
-                <p style="font-size: 11px; color: #111111; margin-top: 5px;">{info['intel']}</p>
-            </div>
-        """
+        # Style based on discovery
+        marker_color = "#00FF00" if is_discovered else "#444444"
+        fill_opac = 0.2 if is_discovered else 0.05
         
-        # Circle for visual demarkation
+        if is_discovered:
+            loc_img_url = get_image_url(info["image"])
+            popup_content = f"""
+                <div style="width: 200px; color: #111;">
+                    <h4>{info['name'].upper()}</h4>
+                    <img src="{loc_img_url}" style="width: 100%;">
+                    <p>{info['intel']}</p>
+                </div>
+            """
+        else:
+            popup_content = "<h4>LOCATION CLASSIFIED</h4><p>Send operatives to this sector to acquire intel.</p>"
+
         folium.Circle(
             location=info["coords"],
             radius=50,
-            color="#00FF00",
-            weight=1,
+            color=marker_color,
             fill=True,
-            fill_color="#00FF00",
-            fill_opacity=0.1,
-            interactive=False 
+            fill_color=marker_color,
+            fill_opacity=fill_opac
         ).add_to(m)
 
-        # Invisible Marker for reliable popup triggering
         folium.Marker(
             location=info["coords"],
-            icon=folium.DivIcon(html="""<div style="width: 40px; height: 40px; margin-left: -20px; margin-top: -20px;"></div>"""), 
-            popup=folium.Popup(popup_html, max_width=250),
-            tooltip=f"INSPECT: {info['name']}"
+            icon=folium.DivIcon(html=f'<div style="font-size: 8pt; color: {marker_color}; font-weight: bold;">{info["name"] if is_discovered else "???"}</div>'),
+            popup=folium.Popup(popup_content, max_width=250)
         ).add_to(m)
 
    # 4. DYNAMIC SQUAD PLACEMENT (Robust Matching)
