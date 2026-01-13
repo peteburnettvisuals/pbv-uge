@@ -79,7 +79,7 @@
             <intel>MV Panamax. Target of interest. Docked at Pier 1.</intel>
             <aliases>ship, boat, panamax, target, vessel</aliases>
         </poi>
-        <poi id="the_rusty_anchor">
+        <poi id="rusty_anchor">
             <name>The Rusty Anchor</name>
             <lat>9.3556</lat>
             <lon>-79.9047</lon>

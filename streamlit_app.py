@@ -249,7 +249,6 @@ with st.sidebar:
     st.divider()
     st.subheader("📊 EFFICIENCY: " + str(st.session_state.efficiency_score))
 
-    st.write(st.session_state.locations)
 
 # --- MAIN TERMINAL ---
 
