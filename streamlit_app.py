@@ -100,10 +100,12 @@ def get_dm_response(prompt):
     mission_tree = ET.parse("mission_data.xml")
     mission_root = mission_tree.getroot()
     # Extract objectives directly from the tree we just opened
-    st.session_state.objectives = {
-        task.get('id'): (task.get('status').lower() == 'true') 
-        for task in mission_root.findall('.//task')
-    }
+    # ONLY initialize if not already present to avoid resetting progress
+    if not st.session_state.objectives:
+        st.session_state.objectives = {
+            task.get('id'): (task.get('status').lower() == 'true') 
+            for task in mission_root.findall('.//task')
+        }
     intent = mission_root.find("intent")
     
     # Format objectives for the AI so it knows the "To-Do" list
@@ -164,27 +166,34 @@ def get_dm_response(prompt):
     #st.session_state.mission_time -= 1
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # 4. ENHANCED DYNAMIC TRACKER
-    # Create a lookup for both IDs and Names
+    # 4. ENHANCED DYNAMIC TRACKER (Greedy Matching)
     name_to_id = {info['name'].lower(): poi_id for poi_id, info in MISSION_DATA.items()}
-    id_to_name = {poi_id.lower(): info['name'] for poi_id, info in MISSION_DATA.items()}
     
-    # Search pattern includes all canonical names and IDs
-    search_pattern = "|".join([re.escape(n) for n in name_to_id.keys()] + [re.escape(i) for i in id_to_name.keys()])
+    # Create a list of all names and aliases to search for
+    all_place_names = list(name_to_id.keys())
+    for poi in MISSION_DATA.values():
+        # Add the POI name without "The" if applicable for better matching
+        pure_name = poi['name'].lower().replace("the ", "").strip()
+        if pure_name not in all_place_names:
+            all_place_names.append(pure_name)
+
+    search_pattern = "|".join([re.escape(n) for n in all_place_names])
     
     for unit in ["SAM", "DAVE", "MIKE"]:
-        # Look for [UNIT] followed by a mention of a location later in the same message block
-        # We look for the "Arrived at" or "Moving to" context specifically
-        pattern = rf"\[{unit}\].*?(?:Arrived at|Moving to|at)\s+({search_pattern})"
-        loc_match = re.search(pattern, response_text, re.IGNORECASE)
+        # Find all occurrences of [UNIT]...[Location]
+        # We want the LAST location mentioned in the response for that unit
+        unit_pattern = rf"\[{unit}\].*?({search_pattern})"
+        matches = re.findall(unit_pattern, response_text, re.IGNORECASE)
         
-        if loc_match:
-            hit = loc_match.group(1).lower()
-            # Resolve the hit to the official Canonical Name
-            final_name = id_to_name.get(hit) or next((info['name'] for n, poi_id in name_to_id.items() if n == hit for poi_id, info in MISSION_DATA.items() if poi_id == poi_id), None)
+        if matches:
+            # We take the last match as the 'current' location
+            hit = matches[-1].lower()
             
-            if final_name:
-                st.session_state.locations[unit] = final_name
+            # Find the official Canonical Name from MISSION_DATA
+            for poi_id, info in MISSION_DATA.items():
+                if hit in info['name'].lower() or hit == poi_id:
+                    st.session_state.locations[unit] = info['name']
+                    break
 
     # 5. METIER FULFILLMENT (Refactored for PMC Skills)
     for unit in ["SAM", "DAVE", "MIKE"]:
@@ -352,7 +361,8 @@ with col2:
         
         # Match current_loc_name to the MISSION_DATA entry
         # This handles the "The" and Case Sensitivity issues
-        loc_info = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA['south_quay'])
+        # Ensure we look up by the exact ID key from your MISSION_DATA dictionary
+        loc_info = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA.get('south_quay'))
         
         base_coords = loc_info["coords"]
         offset = offsets.get(unit, [0, 0])
