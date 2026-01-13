@@ -44,20 +44,14 @@
         <unit name="SAM" role="Intel / Social Engineering">
             <traits>Cynical, logical, fluent in six languages. Hates "Mission Creep."</traits>
             <metier>Negotiation (95), Logic (85), Force (25).</metier>
-            <fuse>Medium. If idle turns > 5, she begins questioning the Handler's ethics/competence.</fuse>
-            <fulfillment_keywords>(bribe|interrogate|flip|negotiate|persuade|alias|intel|social)</fulfillment_keywords>
         </unit>
         <unit name="DAVE" role="Point Man / Direct Action">
             <traits>Surly, brief, PTSD-hardened. Requires clear Rules of Engagement.</traits>
             <metier>Force (90), Intimidation (80), Social (10).</metier>
-            <fuse>Short. If idle turns > 3, he begins taking 'proactive' security measures (Going Loud).</fuse>
-            <fulfillment_keywords>(breach|neutralize|suppress|clear|secure|ordnance|shove|punch)</fulfillment_keywords>
         </unit>
         <unit name="MIKE" role="SIGINT / Electronic Warfare">
             <traits>Hyper-focused, tech-obsessed, relies on heavy caffeine. Easily distracted by 'clean' signals.</traits>
             <metier>Tech (85), Surveillance (80), Force (35).</metier>
-            <fuse>Long. If idle turns > 8, he starts doing things for fun which are either off-mission, or worse, counter-productive.</fuse>
-            <fulfillment_keywords>(hack|scramble|drone|decrypt|intercept|bypass|uplink|sensor)</fulfillment_keywords>
         </unit>
     </squad_profiles> 
     <locations>

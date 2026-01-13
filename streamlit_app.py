@@ -128,7 +128,7 @@ def get_dm_response(prompt):
            [OBJ_DATA: obj_id=TRUE/FALSE]
         3. VOICE TONE: SAM (Professional, arch), DAVE (Laidback, laconic,) MIKE (Geek).
 
-        OBJECTIVE LOGIC: You are responsible for the mission's digital ledger. When an operative describes the successful completion of a task (e.g., securing the truck, identifying the container), the very next line of your internal data suffix MUST reflect that change. Do not wait for the Commander to ask; report the completion immediately.
+        CRITICAL: You are the authoritative mission ledger. As soon as an operative reports completing a task (e.g., Mike finding the container number), you MUST append [OBJ_DATA: obj_id=TRUE] to the very end of your response. Do not wait for the Commander to acknowledge it.
 
         COMMUNICATION ARCHITECTURE:
         1. MULTI-UNIT REPORTING: Every response MUST include a SITREP from all three operatives (SAM, DAVE, MIKE). 
@@ -151,9 +151,10 @@ def get_dm_response(prompt):
     [COMMANDER_ORDERS] {prompt}
 
     [MANDATORY_RESPONSE_GUIDE] 
-    1. Provide a full SITREP from SAM, DAVE, and MIKE. Use their unique voice tones (SAM: arch/pro, DAVE: laconic, MIKE: geek). Include cross-talk and banter. End with the LOC_DATA and OBJ_DATA tags.
-    2. CHECK OBJECTIVES: If any unit has just completed a 'TODO' task (e.g. Mike finding the manifest), you MUST include [OBJ_DATA: obj_id=TRUE] in the footer.
-    3. Include the [LOC_DATA] block.
+    1. Direct Dialogue: Provide SITREPs for SAM, DAVE, and MIKE. 
+    2. Data Suffix: You MUST end with exactly:
+       [LOC_DATA: SAM=Loc, DAVE=Loc, MIKE=Loc]
+       [OBJ_DATA: obj_id=TRUE] (Only if a task was just finished!)
     """
     
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
@@ -199,13 +200,6 @@ def get_dm_response(prompt):
             st.toast(f"🎯 OBJECTIVE REACHED: {obj_id.upper()}")
             st.session_state.efficiency_score += 150 # Bonus for clean execution
 
-    # C. Metier/Idle Check (Keep turns advancing)
-    for unit in ["SAM", "DAVE", "MIKE"]:
-        st.session_state.idle_turns[unit] += 1
-        keywords = {"SAM": r"(bribe|negotiate|intel)", "DAVE": r"(breach|neutralize|secure)", "MIKE": r"(hack|drone|bypass)"}
-        if re.search(rf"\[{unit}\].*?{keywords[unit]}", response_text, re.IGNORECASE):
-            st.session_state.idle_turns[unit] = 0
-
     # D. Clean the Response for UI
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     return clean_response
@@ -218,9 +212,6 @@ with st.sidebar:
     
     # Dual-Metric HUD
     st.progress(st.session_state.viability / 100, text=f"PLAUSIBLE DENIABILITY: {st.session_state.viability}%")
-    
-    avg_morale = sum([100 - (t * 10) for t in st.session_state.idle_turns.values()]) / 3
-    st.progress(avg_morale / 100, text=f"SQUAD MORALE: {int(avg_morale)}%")
     
     st.metric(label="MISSION CLOCK", value=f"{st.session_state.mission_time} MIN")
     
@@ -238,15 +229,7 @@ with st.sidebar:
         else:
             st.write(f"◻️ {label}")
     
-    # Deployment Location Tracker (Fixed default to 'Perimeter')
-    st.subheader("📍 DEPLOYMENT STATUS")
-    cols = st.columns(3)
-    for i, unit in enumerate(["SAM", "DAVE", "MIKE"]):
-        with cols[i]:
-            st.caption(unit)
-            idle = st.session_state.idle_turns.get(unit, 0)
-            status_color = "🟢" if idle < 2 else "🟡" if idle < 4 else "🔴"
-            
+         
 
      
     st.subheader("👥 SQUAD DOSSIERS")
@@ -281,7 +264,7 @@ with col1:
         if not st.session_state.messages:
             with st.spinner("Establishing Multiplex Link..."):
                 # This triggers the sys_instr and gets the first squad report
-                init_response = get_dm_response("Commander on deck. All units are currently at Costa Verde dock. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you. Let me know what locations you can see.")
+                init_response = get_dm_response("Commander on deck. All units are currently at South Quay. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you.")
                 st.session_state.messages.append({"role": "assistant", "content": init_response})
                 # st.rerun() is removed here to avoid an infinite loop during initial load
 
