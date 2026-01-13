@@ -280,39 +280,51 @@ with col2:
     # 2. INITIALIZE MAP
     m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
     
-    # 3. MARK MISSION LOCATIONS (Fog of War)
+    # 3. MARK MISSION LOCATIONS (Labeled Fog of War)
     for loc_id, info in MISSION_DATA.items():
         is_discovered = loc_id in st.session_state.discovered_locations
         
-        # Style based on discovery
-        marker_color = "#00FF00" if is_discovered else "#444444"
+        # Consistent tactical color, but different opacity for scouted areas
+        marker_color = "#00FF00" 
         fill_opac = 0.2 if is_discovered else 0.05
         
         if is_discovered:
             loc_img_url = get_image_url(info["image"])
-            popup_content = f"""
-                <div style="width: 200px; color: #111;">
-                    <h4>{info['name'].upper()}</h4>
-                    <img src="{loc_img_url}" style="width: 100%;">
-                    <p>{info['intel']}</p>
+            popup_html = f"""
+                <div style="width: 200px; color: #111; font-family: monospace;">
+                    <h4 style="margin-bottom:5px; border-bottom:1px solid #ccc;">{info['name'].upper()}</h4>
+                    <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
+                    <p style="font-size: 10px; margin-top:5px;">{info['intel']}</p>
                 </div>
             """
         else:
-            popup_content = "<h4>LOCATION CLASSIFIED</h4><p>Send operatives to this sector to acquire intel.</p>"
+            popup_html = f"""
+                <div style="width: 150px; color: #111; font-family: monospace;">
+                    <h4 style="margin-bottom:5px;">{info['name'].upper()}</h4>
+                    <p style="font-size: 10px; color: #666;">[RECON REQUIRED]<br>Visuals and intel unavailable.</p>
+                </div>
+            """
 
+        # Visual marker for the location
         folium.Circle(
             location=info["coords"],
-            radius=50,
+            radius=40,
             color=marker_color,
+            weight=1,
             fill=True,
             fill_color=marker_color,
-            fill_opacity=fill_opac
+            fill_opacity=fill_opac,
+            tooltip=f"WAYPOINT: {info['name'].upper()}"
         ).add_to(m)
 
+        # Permanent Label (Always Visible)
         folium.Marker(
             location=info["coords"],
-            icon=folium.DivIcon(html=f'<div style="font-size: 8pt; color: {marker_color}; font-weight: bold;">{info["name"] if is_discovered else "???"}</div>'),
-            popup=folium.Popup(popup_content, max_width=250)
+            icon=folium.DivIcon(
+                html=f'''<div style="font-family: monospace; font-size: 9pt; color: {marker_color}; 
+                      text-shadow: 1px 1px 2px #000; width: 100px;">{info['name'].upper()}</div>'''
+            ),
+            popup=folium.Popup(popup_html, max_width=250)
         ).add_to(m)
 
    # 4. DYNAMIC SQUAD PLACEMENT (Robust Matching)
