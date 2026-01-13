@@ -200,6 +200,16 @@ def get_dm_response(prompt):
             st.toast(f"🎯 OBJECTIVE REACHED: {obj_id.upper()}")
             st.session_state.efficiency_score += 150 # Bonus for clean execution
 
+    # After receiving response_text from Gemini
+    win_trigger = "Mission Complete: Assets in Transit"
+    
+    if win_trigger.lower() in response_text.lower():
+        # Calculate time taken
+        start_time = 60
+        time_remaining = st.session_state.mission_time
+        st.session_state.time_elapsed = start_time - time_remaining
+        st.session_state.mission_complete = True        
+
     # D. Clean the Response for UI
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     return clean_response
@@ -252,116 +262,85 @@ with st.sidebar:
 
 # --- MAIN TERMINAL ---
 
-# Create the dual-column tactical view
-col1, col2 = st.columns([0.4, 0.6])
-
-with col1:
-    st.markdown("### 📡 COMMS FEED")
-    chat_container = st.container(height=650, border=True)
-    with chat_container:
-        # AUTO-SITREP: If there are no messages, trigger the start immediately
-        if not st.session_state.messages:
-            with st.spinner("Establishing Multiplex Link..."):
-                # This triggers the sys_instr and gets the first squad report
-                init_response = get_dm_response("Commander on deck. All units are currently at South Quay. Sam, Mike, Dave—give me a quick SITREP on your immediate surroundings before I deploy you.")
-                st.session_state.messages.append({"role": "assistant", "content": init_response})
-                # st.rerun() is removed here to avoid an infinite loop during initial load
-
-        # Display the comms log
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
-
-with col2:
-    st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
+if st.session_state.get("mission_complete", False):
+    # --- MISSION SUCCESS UI ---
+    st.balloons()
+    st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE</h1>", unsafe_allow_html=True)
     
-    # 1. DEFINE ASSETS IMMEDIATELY (Fixes NameError)
-    sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
-    dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
-    mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
-    
-    # 2. INITIALIZE MAP
-    m = folium.Map(location=[9.3492, -79.9150], zoom_start=15, tiles="CartoDB dark_matter")
-    
-    # 3. MARK MISSION LOCATIONS (Labeled Fog of War)
-    for loc_id, info in MISSION_DATA.items():
-        is_discovered = loc_id in st.session_state.discovered_locations
+    col_a, col_b, col_c = st.columns([1, 2, 1])
+    with col_b:
+        # Success banner placeholder
+        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/success-banner.png") 
+        st.metric("TOTAL EXTRACTION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
+        st.metric("VIABILITY REMAINING", f"{st.session_state.viability}%")
         
-        # Consistent tactical color, but different opacity for scouted areas
-        marker_color = "#00FF00" 
-        fill_opac = 0.2 if is_discovered else 0.05
+        score = (st.session_state.viability * 10) - (st.session_state.get('time_elapsed', 0) * 5)
+        st.subheader(f"FINAL RATING: {max(0, score)} PTS")
         
-        if is_discovered:
-            loc_img_url = get_image_url(info["image"])
-            popup_html = f"""
-                <div style="width: 200px; color: #111; font-family: monospace;">
-                    <h4 style="margin-bottom:5px; border-bottom:1px solid #ccc;">{info['name'].upper()}</h4>
-                    <img src="{loc_img_url}" style="width: 100%; border: 1px solid #00FF00;">
-                    <p style="font-size: 10px; margin-top:5px;">{info['intel']}</p>
-                </div>
-            """
-        else:
-            popup_html = f"""
-                <div style="width: 150px; color: #111; font-family: monospace;">
-                    <h4 style="margin-bottom:5px;">{info['name'].upper()}</h4>
-                    <p style="font-size: 10px; color: #666;">[RECON REQUIRED]<br>Visuals and intel unavailable.</p>
-                </div>
-            """
+        if st.button("REDEPLOY (NEW MISSION)"):
+            st.session_state.clear()
+            st.rerun()
+else:
+    # --- ACTIVE MISSION UI ---
+    col1, col2 = st.columns([0.4, 0.6])
 
-        # Visual marker for the location
-        folium.Circle(
-            location=info["coords"],
-            radius=40,
-            color=marker_color,
-            weight=1,
-            fill=True,
-            fill_color=marker_color,
-            fill_opacity=fill_opac,
-            tooltip=f"WAYPOINT: {info['name'].upper()}"
-        ).add_to(m)
+    with col1:
+        st.markdown("### 📡 COMMS FEED")
+        chat_container = st.container(height=650, border=True)
+        with chat_container:
+            if not st.session_state.messages:
+                with st.spinner("Establishing Multiplex Link..."):
+                    # Initial SITREP request
+                    init_response = get_dm_response("Commander on deck. All units at South Quay. Give SITREPs.")
+                    st.session_state.messages.append({"role": "assistant", "content": init_response})
 
-        # Permanent Label (Always Visible)
-        folium.Marker(
-            location=info["coords"],
-            icon=folium.DivIcon(
-                html=f'''<div style="font-family: monospace; font-size: 9pt; color: {marker_color}; 
-                      text-shadow: 1px 1px 2px #000; width: 100px;">{info['name'].upper()}</div>'''
-            ),
-            popup=folium.Popup(popup_html, max_width=250)
-        ).add_to(m)
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
 
-   # 4. DYNAMIC SQUAD PLACEMENT (Robust Matching)
-    tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
-    offsets = {
-        "SAM":  [0.00015, 0.00000], 
-        "DAVE": [-0.00010, 0.00015],
-        "MIKE": [-0.00010, -0.00015]
-    }
-
-    for unit, icon in tokens.items():
-        current_loc_name = st.session_state.locations.get(unit, "South Quay")
+    with col2:
+        st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
         
-        # Exact match logic against MISSION_DATA
-        target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA.get('south_quay'))
+        # Define assets
+        sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+        dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+        mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
         
-        base_coords = target_poi["coords"]
-        offset = offsets.get(unit, [0, 0])
-        final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
+        m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
         
-        folium.Marker(
-            final_coords, 
-            icon=icon, 
-            tooltip=f"{unit}: {current_loc_name.upper()}"
-        ).add_to(m)
-    
-    # 5. RENDER (Stability settings)
-    st_folium(m, use_container_width=True, key="tactical_map_v2", returned_objects=[])       
+        # Fog of War & Discovery Render
+        for loc_id, info in MISSION_DATA.items():
+            is_discovered = loc_id in st.session_state.discovered_locations
+            marker_color = "#00FF00" 
+            fill_opac = 0.2 if is_discovered else 0.02
+            
+            if is_discovered:
+                loc_img_url = get_image_url(info["image"])
+                popup_html = f'<div style="width:200px;background:#000;padding:10px;border:1px solid #0f0;"><h4 style="color:#0f0;">{info["name"]}</h4><img src="{loc_img_url}" width="100%"><p style="color:#0f0;font-size:10px;">{info["intel"]}</p></div>'
+            else:
+                popup_html = f'<div style="width:150px;background:#000;padding:10px;"><h4 style="color:#666;">{info["name"]}</h4><p style="color:#666;font-size:10px;">[RECON REQUIRED]</p></div>'
 
-if prompt := st.chat_input("Issue Commands..."):
-    # The clock only moves when the Commander acts
-    st.session_state.mission_time -= 1 
-    
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    response = get_dm_response(prompt)
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    st.rerun()
+            folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
+            folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
+
+        # Squad Tokens
+        tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+        offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
+
+        for unit, icon in tokens.items():
+            current_loc = st.session_state.locations.get(unit, "South Quay")
+            # Robust matching POI by name
+            target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('south_quay'))
+            
+            final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
+            folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
+        
+        st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
+
+    # Chat Input outside columns but inside the 'else'
+    if prompt := st.chat_input("Issue Commands..."):
+        st.session_state.mission_time -= 1 
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        response = get_dm_response(prompt)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.rerun()

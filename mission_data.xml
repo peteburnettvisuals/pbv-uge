@@ -8,10 +8,10 @@
             <task id="obj_identify_container" status="false">
                 <description>Identify which container the munitions are being stored in.</description>
                 <location_trigger>harbor_master</location_trigger>
-                <logic>Requires MIKE to hack manifest or SAM to bribe clerk.</logic>
+                <logic>REQUIRED: MIKE to hack manifest locally at the harbor master office.</logic>
             </task>
-            <task id="obj_remove_container" status="false">
-                <description>Removal of target container from the Panamax.</description>
+            <task id="obj_enter_container" status="false">
+                <description>Entry to, or removal of, target container from the Panamax.</description>
                 <location_trigger>docking_bay_4</location_trigger>
                 <dependency>obj_identify_container</dependency>
             </task>
@@ -20,17 +20,22 @@
                 <location_trigger>maintenance_hangar</location_trigger>
                 <logic>Requires DAVE to secure vehicle or SAM to negotiate lease.</logic>
             </task>
-            <task id="obj_transport_customs" status="false">
-                <description>Transport of container through customs security.</description>
+            <task id="obj_transport_munitions" status="false">
+                <description>Transport of munitions through customs security.</description>
                 <location_trigger>customs_checkpoint</location_trigger>
                 <dependency>obj_remove_container, obj_acquire_transport</dependency>
             </task>
-            <task id="obj_handover" status="false">
-                <description>Agency handover point at town plaza.</description>
+            <task id="obj__agency_handover" status="false">
+                <description>Handover of munitions at agency handover point at town plaza.</description>
                 <location_trigger>town_plaza</location_trigger>
                 <dependency>obj_transport_customs</dependency>
             </task>
         </objectives>
+        <win_condition>
+            <target_item>Munitions Crates</target_item>
+            <target_location>Town Plaza</target_location>
+            <trigger_text>Mission Complete: Assets in Transit</trigger_text>
+        </win_condition>
         <intel>
         - There are several container trucks at the maintenance_hangar, which have recently been repaired.
         - The Rusty Anchor is a frequent drinking place for crane operators.
@@ -41,15 +46,15 @@
         <timeline>Mission to commence at 0500 - arrival time of the MV Panamax. Cartel due to arrive to collect munitions at 0600.</timeline>
     </intent>
     <squad_profiles>
-        <unit name="SAM" role="Intel / Social Engineering">
+        <unit name="SAM" role="Intel / Social Engineering" gender="Female">
             <traits>Cynical, logical, fluent in six languages. Hates "Mission Creep."</traits>
             <metier>Negotiation (95), Logic (85), Force (25).</metier>
         </unit>
-        <unit name="DAVE" role="Point Man / Direct Action">
+        <unit name="DAVE" role="Point Man / Direct Action" gender="Male">
             <traits>Surly, brief, PTSD-hardened. Requires clear Rules of Engagement.</traits>
             <metier>Force (90), Intimidation (80), Social (10).</metier>
         </unit>
-        <unit name="MIKE" role="SIGINT / Electronic Warfare">
+        <unit name="MIKE" role="SIGINT / Electronic Warfare" gender="Male">
             <traits>Hyper-focused, tech-obsessed, relies on heavy caffeine. Easily distracted by 'clean' signals.</traits>
             <metier>Tech (85), Surveillance (80), Force (35).</metier>
         </unit>
