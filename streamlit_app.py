@@ -14,7 +14,9 @@ def local_css(file_name):
 local_css("style.css")
 
 # --- CONFIGURATION & INITIALIZATION ---
-st.set_page_config(layout="wide", page_title="UGE: Architect Command")
+st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal Mission")
+
+
 
 # 1. ENGINE UTILITIES
 def load_mission(file_path):
@@ -38,26 +40,24 @@ def load_mission(file_path):
 # 2. GLOBAL INITIALIZATION
 MISSION_DATA = load_mission('mission_data.xml')
 
+# Parse objectives immediately for the Sidebar UI
+def get_initial_objectives(file_path):
+    tree = ET.parse(file_path)
+    return {t.get('id'): (t.get('status').lower() == 'true') for t in tree.findall('.//task')}
+
+if "objectives" not in st.session_state:
+    st.session_state.objectives = get_initial_objectives('mission_data.xml')
+
 # Unified Session State Initialization
 if "viability" not in st.session_state:
     st.session_state.update({
-        "viability": 100,      # Replaces Mana: Plausible Deniability
-        "mission_time": 60,   # 60-minute window (0500-0600)
-        "inventory": ["C2 Terminal", "Encrypted Uplink"], 
+        "viability": 100,
+        "mission_time": 60,
         "messages": [],
-        "current_chapter_id": "1",
         "chat_session": None,
         "efficiency_score": 1000,
-        "unlocked_intel": [],  # For the upcoming Asset Gallery
-        
-        # SQUAD DATA - Starting at the Insertion Point
-        "locations": {"SAM": "Perimeter", "DAVE": "Perimeter", "MIKE": "Perimeter"},
+        "locations": {"SAM": "South Quay", "DAVE": "South Quay", "MIKE": "South Quay"},
         "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
-        "squad": {
-            "SAM": {"role": "Intel", "neg": 95, "force": 25, "tech": 35, "status": "Active"},
-            "DAVE": {"role": "Point", "neg": 10, "force": 90, "tech": 10, "status": "Active"},
-            "MIKE": {"role": "SIGINT", "neg": 50, "force": 35, "tech": 85, "status": "Active"}
-        }
     })
 
 # --- UTILITY FUNCTIONS ---
@@ -95,46 +95,94 @@ def get_dm_response(prompt):
                                   generation_config={"temperature": 0.3},
                                   safety_settings=safety_settings)
 
-    # 2. XML GROUND TRUTH
-    tree = ET.parse("game_sheet.xml")
-    root = tree.getroot()
-    chapter_data = root.find(f"chapter[@id='{st.session_state.current_chapter_id}']")
-    locations_xml = chapter_data.find("locations")
-    location_list = [loc.get("name") for loc in locations_xml.findall("location")]
+    # 2. XML GROUND TRUTH & OBJECTIVES
+    # We pull the mission intent and objectives to keep the AI on rails
+    mission_tree = ET.parse("mission_data.xml")
+    mission_root = mission_tree.getroot()
+    # Extract objectives directly from the tree we just opened
+    st.session_state.objectives = {
+        task.get('id'): (task.get('status').lower() == 'true') 
+        for task in mission_root.findall('.//task')
+    }
+    intent = mission_root.find("intent")
     
+    # Format objectives for the AI so it knows the "To-Do" list
+    objs_text = ""
+    for task in intent.findall(".//task"):
+        status = "COMPLETED" if st.session_state.objectives.get(task.get('id')) else "PENDING"
+        objs_text += f"- [{status}] {task.find('description').text} (ID: {task.get('id')})\n"
+
+    # Map aliases for location adherence
+    location_logic = ""
+    for poi in mission_root.findall(".//poi"):
+        name = poi.find('name').text
+        aliases = poi.find('aliases').text if poi.find('aliases') is not None else ""
+        location_logic += f"- {name} (Aliases: {aliases})\n"
+
     if st.session_state.chat_session is None:
         sys_instr = f"""
-        {root.find("synopsis").text}
-        YOU ARE: Agency Comms Net. PLAYER: Commander.
-        VALID LOCATIONS: {', '.join(location_list)}
-        
-        UNIT PROFILES:
-        - SAM: Intel/Social. 95 Neg. Needs a plan.
-        - DAVE: Direct Action. 90 Force. Needs ROE.
-        - MIKE: SIGINT. 85 Tech. Needs focus.
+        THEATER: {intent.find("theater").text}
+        SITUATION: {intent.find("situation").text}
+        CONSTRAINTS: {intent.find("constraints").text}
 
-        OPERATIONAL PROTOCOLS:
-        1. UNIT TAGS: Start every transmission with [SAM], [DAVE], or [MIKE].
-        2. TACTICAL MENTIONS: Units must state their location arrival in the first sentence.
-        3. CONTENT: PG-13 Tactical Thriller style. Focus on outcomes.
-        4. SQUAD FUSES: DAVE (Short: 3), SAM (Med: 5), MIKE (Long: 8).
-        5. VIABILITY: High-visibility violence triggers [VIABILITY_BURN: X].
-        6. INTERNAL PROTOCOL: You are a passive multiplexer. You NEVER issue orders to the Player. You only relay the voices of SAM, DAVE, and MIKE. You are the mirror, not the master.
+        CANONICAL LOCATIONS & PERMITTED ALIASES:
+        {location_logic}
+        
+        YOU ARE: The tactical multiplexer for Gundogs PMC.
+        
+        STRICT OPERATIONAL RULES:
+        1. LOCATIONAL ADHERENCE: You only recognize the locations listed above. If the Commander orders a unit to a non-canonical location (e.g., 'Ice Cream Factory'), the unit must reply they have no intel on that coordinate and remain stationary.
+        2. MOVEMENT: When a unit is ordered to a location or one of its aliases, you MUST start their dialogue with: "[UNIT] Moving to [CANONICAL NAME] / Arrived at [CANONICAL NAME]."
+        3. OBJECTIVE TRACKING: When a unit performs an action that satisfies a 'PENDING' task (see logic in XML), you must output the tag [OBJECTIVE_MET: task_id] at the end of the transmission.
+        4. NO HALLUCINATIONS: Do not invent new buildings or NPCs. Use the <intel> provided in the mission data.
+        5. VOICE: 
+           - SAM: Cynical, focuses on 'Negotiation/Logic'.
+           - DAVE: Brief, focuses on 'Force'. 
+           - MIKE: Tech-heavy, focuses on 'Signals/Hacking'.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
+    # 1. Prepare the Tactical Context String
+    obj_status = ", ".join([f"{k}:{'DONE' if v else 'TODO'}" for k, v in st.session_state.objectives.items()])
+    unit_locs = ", ".join([f"{u}@{loc}" for u, loc in st.session_state.locations.items()])
+    
+    # 2. Build the Enriched Prompt
+    # This is "hidden" from the user but visible to the AI
+    enriched_prompt = f"""
+    [SYSTEM_STATE_UPDATE]
+    TIME_REMAINING: {st.session_state.mission_time}m
+    SQUAD_LOCATIONS: {unit_locs}
+    OBJECTIVES: {obj_status}
+    VIABILITY: {st.session_state.viability}%
+
+    [COMMANDER_ORDERS]
+    {prompt}
+    """
+    
     # 3. ADVANCE MISSION CLOCK
     #st.session_state.mission_time -= 1
-    response_text = st.session_state.chat_session.send_message(prompt).text
+    response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # 4. ENHANCED DYNAMIC TRACKER (Refactored for Modern Sites)
+    # 4. ENHANCED DYNAMIC TRACKER (Strict Canonical Adherence)
+    # We build the search pattern from the actual XML data keys and names
+    valid_names = [info['name'] for info in MISSION_DATA.values()]
+    valid_ids = list(MISSION_DATA.keys())
+    search_pattern = "|".join(set(valid_names + valid_ids))
+    
     for unit in ["SAM", "DAVE", "MIKE"]:
-        dynamic_locs = "|".join(location_list + ["Perimeter", "Hub", "Office", "Bay"])
-        pattern = rf"\[{unit}\].*?({dynamic_locs})"
+        # Pattern looks for: [DAVE] ... Harbor Master Office
+        pattern = rf"\[{unit}\].*?({search_pattern})"
         loc_match = re.search(pattern, response_text, re.IGNORECASE)
+        
         if loc_match:
-            st.session_state.locations[unit] = loc_match.group(1).title()
+            detected_name = loc_match.group(1).lower().replace(" ", "_")
+            
+            # Match the detected string back to a valid POI ID
+            for poi_id, info in MISSION_DATA.items():
+                if detected_name == poi_id or detected_name == info['name'].lower().replace(" ", "_"):
+                    st.session_state.locations[unit] = info['name']
+                    break
 
     # 5. METIER FULFILLMENT (Refactored for PMC Skills)
     for unit in ["SAM", "DAVE", "MIKE"]:
@@ -153,6 +201,17 @@ def get_dm_response(prompt):
         penalty = int(re.search(r"\[VIABILITY_BURN:\s*(\d+)\]", response_text).group(1))
         st.session_state.viability = max(0, st.session_state.viability - penalty)
         st.toast(f"🚨 SIGNAL COMPROMISED: -{penalty}% Viability")
+
+    # 7. OBJECTIVE TRACKING (Flips the booleans based on AI confirmation)
+    obj_pattern = r"\[OBJECTIVE_MET:\s*(obj_\w+)\]"
+    obj_matches = re.findall(obj_pattern, response_text)
+    
+    for obj_id in obj_matches:
+        if obj_id in st.session_state.objectives and not st.session_state.objectives[obj_id]:
+            st.session_state.objectives[obj_id] = True
+            st.toast(f"✅ TASK COMPLETE: {obj_id.replace('obj_', '').replace('_', ' ').upper()}")
+            # Logic: If an objective is met, efficiency score goes up
+            st.session_state.efficiency_score += 100
 
     return response_text
 
@@ -173,7 +232,14 @@ with st.sidebar:
         st.session_state.clear() # Clears everything to trigger a fresh boot
         st.rerun()
 
-    st.divider()
+    # Add this to your Sidebar logic:
+    st.subheader("📝 MISSION CHECKLIST")
+    for obj_id, status in st.session_state.objectives.items():
+        label = obj_id.replace('obj_', '').replace('_', ' ').title()
+        if status:
+            st.write(f"✅ ~~{label}~~")
+        else:
+            st.write(f"◻️ {label}")
     
     # Deployment Location Tracker (Fixed default to 'Perimeter')
     st.subheader("📍 DEPLOYMENT STATUS")
@@ -184,12 +250,7 @@ with st.sidebar:
             idle = st.session_state.idle_turns.get(unit, 0)
             status_color = "🟢" if idle < 2 else "🟡" if idle < 4 else "🔴"
             
-            # Start at Perimeter instead of Square
-            loc = st.session_state.locations.get(unit, "Perimeter") 
-            st.write(f"{status_color} {loc}")
 
-    st.divider()
-    
      
     st.subheader("👥 SQUAD DOSSIERS")
     unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)

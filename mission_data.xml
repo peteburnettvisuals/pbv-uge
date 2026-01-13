@@ -1,5 +1,65 @@
 <mission id="cristobal_01">
-    <theater>Puerto de Cristobal, Panama</theater>
+    <intent>
+        <theater>Puerto de Cristobal, Colon, Panama</theater>
+        <situation>A local cartel has managed to source anti-aircraft weapons which are being delivered to the port of Cristobal via the cargo ship MV Panamax. These weapons represent an unacceptable threat to the local authorities.</situation>
+        <mission>PMC Gundogs have been tasked with the interception of these munitions at the port, and their delivery into Agency hands.</mission>
+        <constraints>No use of lethal force, except if fired upon by Cartel forces. The munitions cannot be destroyed on site to to high risk of collateral damage. The operation is to remain covert, and should not leave any traces connecting it to the Agency</constraints>
+        <objectives>
+            <task id="obj_identify_container" status="false">
+                <description>Identify which container the munitions are being stored in.</description>
+                <location_trigger>harbor_master</location_trigger>
+                <logic>Requires MIKE to hack manifest or SAM to bribe clerk.</logic>
+            </task>
+            <task id="obj_remove_container" status="false">
+                <description>Removal of target container from the Panamax.</description>
+                <location_trigger>docking_bay_4</location_trigger>
+                <dependency>obj_identify_container</dependency>
+            </task>
+            <task id="obj_acquire_transport" status="false">
+                <description>Acquisition of transport for container.</description>
+                <location_trigger>maintenance_hangar</location_trigger>
+                <logic>Requires DAVE to secure vehicle or SAM to negotiate lease.</logic>
+            </task>
+            <task id="obj_transport_customs" status="false">
+                <description>Transport of container through customs security.</description>
+                <location_trigger>customs_checkpoint</location_trigger>
+                <dependency>obj_remove_container, obj_acquire_transport</dependency>
+            </task>
+            <task id="obj_handover" status="false">
+                <description>Agency handover point at town plaza.</description>
+                <location_trigger>town_plaza</location_trigger>
+                <dependency>obj_transport_customs</dependency>
+            </task>
+        </objectives>
+        <intel>
+        - There are several container trucks at the maintenance_hangar, which have recently been repaired.
+        - The Rusty Anchor is a frequent drinking place for crane operators.
+        - The security team at the gate also doubles as the port fire crew.
+        - the computer system an the Harbour master office contains an electronic copy of the Panamx's manifest, including container loadout.
+        - The container is officially being shipped to the San Rafael missionary, and is described as containing a donation of church fitments from Florida. 
+        </intel>
+        <timeline>Mission to commence at 0500 - arrival time of the MV Panamax. Cartel due to arrive to collect munitions at 0600.</timeline>
+    </intent>
+    <squad_profiles>
+        <unit name="SAM" role="Intel / Social Engineering">
+            <traits>Cynical, logical, fluent in six languages. Hates "Mission Creep."</traits>
+            <metier>Negotiation (95), Logic (85), Force (25).</metier>
+            <fuse>Medium. If idle turns > 5, she begins questioning the Handler's ethics/competence.</fuse>
+            <fulfillment_keywords>(bribe|interrogate|flip|negotiate|persuade|alias|intel|social)</fulfillment_keywords>
+        </unit>
+        <unit name="DAVE" role="Point Man / Direct Action">
+            <traits>Surly, brief, PTSD-hardened. Requires clear Rules of Engagement.</traits>
+            <metier>Force (90), Intimidation (80), Social (10).</metier>
+            <fuse>Short. If idle turns > 3, he begins taking 'proactive' security measures (Going Loud).</fuse>
+            <fulfillment_keywords>(breach|neutralize|suppress|clear|secure|ordnance|shove|punch)</fulfillment_keywords>
+        </unit>
+        <unit name="MIKE" role="SIGINT / Electronic Warfare">
+            <traits>Hyper-focused, tech-obsessed, relies on heavy caffeine. Easily distracted by 'clean' signals.</traits>
+            <metier>Tech (85), Surveillance (80), Force (35).</metier>
+            <fuse>Long. If idle turns > 8, he starts doing things for fun which are either off-mission, or worse, counter-productive.</fuse>
+            <fulfillment_keywords>(hack|scramble|drone|decrypt|intercept|bypass|uplink|sensor)</fulfillment_keywords>
+        </unit>
+    </squad_profiles> 
     <locations>
         <poi id="harbor_master">
             <name>Harbor Master Office</name>
@@ -7,20 +67,23 @@
             <lon>-79.915</lon>
             <image>loc_harbormaster.jpg</image>
             <intel>Port control center. High density of comms hardware.</intel>
+            <aliases>office, control center, comms tower</aliases>
         </poi>
         <poi id="docking_bay_4">
             <name>Docking Bay 4</name>
             <lat>9.354566</lat>
             <lon>-79.911341</lon>
             <image>loc_dock4.jpg</image>
-            <intel>Industrial loading zone. Good for heavy cover.</intel>
+            <intel>Industrial loading zone. Crane Control for Pier 1.</intel>
+            <aliases>dock 4, loading bay, loading zone, the bay</aliases>
         </poi>
         <poi id="the_freighter">
             <name>The Freighter</name>
             <lat>9.353868</lat>
             <lon>-79.912613</lon>
             <image>loc_freighter.jpg</image>
-            <intel>MV Panamax. Target of interest.</intel>
+            <intel>MV Panamax. Target of interest. Docked at Pier 1.</intel>
+            <aliases>ship, boat, panamax, target, vessel</aliases>
         </poi>
         <poi id="the_rusty_anchor">
             <name>The Rusty Anchor</name>
@@ -28,20 +91,23 @@
             <lon>-79.9047</lon>
             <image>loc_taverna.jpg</image>
             <intel>Local dive bar. Low profile zone.</intel>
+            <aliases>bar, dive, tavern, pub, local</aliases>
         </poi>
-        <poi id="north_perimeter">
-            <name>North Perimeter</name>
+        <poi id="north_gate">
+            <name>North Gate</name>
             <lat>9.353864</lat>
             <lon>-79.905291</lon>
             <image>loc_n_perimeter.jpg</image>
             <intel>Chain-link boundary and primary vehicle gate.</intel>
+            <aliases>north gate, main gate, north fence, vehicle gate</aliases>
         </poi>
-        <poi id="perimeter">
-            <name>South Perimeter</name>
+        <poi id="south_quay">
+            <name>South Quay</name>
             <lat>9.350765</lat>
             <lon>-79.905095</lon>
             <image>loc_perimeter.jpg</image>
             <intel>Initial insertion point for the squad.</intel>
+            <aliases>south dock, insertion point, start point, south fence, LZ</aliases>
         </poi>
         <poi id="container_stacks">
             <name>Container Stacks</name>
@@ -49,6 +115,7 @@
             <lon>-79.906057</lon>
             <image>loc_stacks.jpg</image>
             <intel>Vertical maze of containers. Stealth optimal.</intel>
+            <aliases>the stacks, containers, the maze, storage yard</aliases>
         </poi>
         <poi id="maintenance_hangar">
             <name>Maintenance Hangar</name>
@@ -56,6 +123,7 @@
             <lon>-79.903318</lon>
             <image>loc_hangar.jpg</image>
             <intel>Equipment repair facility. Technical assets present.</intel>
+            <aliases>hangar, repair shop, garage</aliases>
         </poi>
         <poi id="customs_checkpoint">
             <name>Customs Checkpoint</name>
@@ -63,13 +131,15 @@
             <lon>-79.907132</lon>
             <image>loc_customs.jpg</image>
             <intel>High-risk administrative bottleneck.</intel>
+            <aliases>customs, checkpoint, security gate, inspection</aliases>
         </poi>
         <poi id="fueling_station">
             <name>Fueling Station</name>
             <lat>9.351272</lat>
             <lon>-79.908291</lon>
             <image>loc_fuel.jpg</image>
-            <intel>Volatile area. Useful for structural sabotage.</intel>
+            <intel>Volatile area.</intel>
+            <aliases>fuel, gas station, fuel tanks, pumps</aliases>
         </poi>
         <poi id="town_plaza">
             <name>Town Plaza</name>
@@ -77,6 +147,7 @@
             <lon>-79.899053</lon>
             <image>loc_plaza.jpg</image>
             <intel>Public square. Primary exfiltration point.</intel>
+            <aliases>plaza, square, exfil, extraction point, handover</aliases>
         </poi>
     </locations>
 </mission>
