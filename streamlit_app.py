@@ -128,6 +128,8 @@ def get_dm_response(prompt):
            [OBJ_DATA: obj_id=TRUE/FALSE]
         3. VOICE TONE: SAM (Professional, arch), DAVE (Laidback, laconic,) MIKE (Geek).
 
+        OBJECTIVE LOGIC: You are responsible for the mission's digital ledger. When an operative describes the successful completion of a task (e.g., securing the truck, identifying the container), the very next line of your internal data suffix MUST reflect that change. Do not wait for the Commander to ask; report the completion immediately.
+
         COMMUNICATION ARCHITECTURE:
         1. MULTI-UNIT REPORTING: Every response MUST include a SITREP from all three operatives (SAM, DAVE, MIKE). 
         2. FORMAT: Use bold headers for each unit. 
@@ -149,7 +151,9 @@ def get_dm_response(prompt):
     [COMMANDER_ORDERS] {prompt}
 
     [MANDATORY_RESPONSE_GUIDE] 
-    Provide a full SITREP from SAM, DAVE, and MIKE. Use their unique voice tones (SAM: arch/pro, DAVE: laconic, MIKE: geek). Include cross-talk and banter. End with the LOC_DATA and OBJ_DATA tags.
+    1. Provide a full SITREP from SAM, DAVE, and MIKE. Use their unique voice tones (SAM: arch/pro, DAVE: laconic, MIKE: geek). Include cross-talk and banter. End with the LOC_DATA and OBJ_DATA tags.
+    2. CHECK OBJECTIVES: If any unit has just completed a 'TODO' task (e.g. Mike finding the manifest), you MUST include [OBJ_DATA: obj_id=TRUE] in the footer.
+    3. Include the [LOC_DATA] block.
     """
     
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
