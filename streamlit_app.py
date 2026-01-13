@@ -82,8 +82,7 @@ def get_image_url(filename):
 
 # --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
-    # 1. TACTICAL SAFETY & CONFIG
-    # Refactored safety settings to prevent KeyErrors
+    # --- CONFIG & XML LOAD ---
     safety_settings = [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -95,136 +94,73 @@ def get_dm_response(prompt):
                                   generation_config={"temperature": 0.3},
                                   safety_settings=safety_settings)
 
-    # 2. XML GROUND TRUTH & OBJECTIVES
-    # We pull the mission intent and objectives to keep the AI on rails
     mission_tree = ET.parse("mission_data.xml")
     mission_root = mission_tree.getroot()
-    # Extract objectives directly from the tree we just opened
-    # ONLY initialize if not already present to avoid resetting progress
-    if not st.session_state.objectives:
-        st.session_state.objectives = {
-            task.get('id'): (task.get('status').lower() == 'true') 
-            for task in mission_root.findall('.//task')
-        }
     intent = mission_root.find("intent")
     
-    # Format objectives for the AI so it knows the "To-Do" list
-    objs_text = ""
-    for task in intent.findall(".//task"):
-        status = "COMPLETED" if st.session_state.objectives.get(task.get('id')) else "PENDING"
-        objs_text += f"- [{status}] {task.find('description').text} (ID: {task.get('id')})\n"
-
-    # Map aliases for location adherence
-    location_logic = ""
-    for poi in mission_root.findall(".//poi"):
-        name = poi.find('name').text
-        aliases = poi.find('aliases').text if poi.find('aliases') is not None else ""
-        location_logic += f"- {name} (Aliases: {aliases})\n"
-
+    # --- SYTEM INSTRUCTION (Revised for Suffix Tagging) ---
     if st.session_state.chat_session is None:
+        location_logic = ""
+        for poi in mission_root.findall(".//poi"):
+            location_logic += f"- {poi.find('name').text} (Aliases: {poi.find('aliases').text if poi.find('aliases') is not None else ''})\n"
+
         sys_instr = f"""
         THEATER: {intent.find("theater").text}
         SITUATION: {intent.find("situation").text}
         CONSTRAINTS: {intent.find("constraints").text}
-
-        CANONICAL LOCATIONS & PERMITTED ALIASES:
+        CANONICAL LOCATIONS:
         {location_logic}
         
         YOU ARE: The tactical multiplexer for Gundogs PMC.
         
         STRICT OPERATIONAL RULES:
-        1. LOCATIONAL ADHERENCE: You only recognize the locations listed above. If the Commander orders a unit to a non-canonical location (e.g., 'Ice Cream Factory'), the unit must reply they have no intel on that coordinate and remain stationary.
-        2. MOVEMENT: When a unit is ordered to a location or one of its aliases, you MUST start their dialogue with: "[UNIT] Moving to [CANONICAL NAME] / Arrived at [CANONICAL NAME]."
-        3. OBJECTIVE TRACKING: When a unit performs an action that satisfies a 'PENDING' task (see logic in XML), you must output the tag [OBJECTIVE_MET: task_id] at the end of the transmission.
-        4. NO HALLUCINATIONS: Do not invent new buildings or NPCs. Use the <intel> provided in the mission data.
-        5. VOICE: 
-           - SAM: Cynical, focuses on 'Negotiation/Logic'.
-           - DAVE: Brief, focuses on 'Force'. 
-           - MIKE: Tech-heavy, focuses on 'Signals/Hacking'.
+        1. LOCATIONAL ADHERENCE: You only recognize canonical locations.
+        2. DATA SUFFIX: Every response MUST end with a data block:
+           [LOC_DATA: SAM=Canonical Name, DAVE=Canonical Name, MIKE=Canonical Name]
+           [OBJ_DATA: obj_id=TRUE/FALSE]
+        3. VOICE: SAM (Intel/Social), DAVE (Force/PTSD), MIKE (Tech/Caffeine).
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
-    # 1. Prepare the Tactical Context String
+    # --- ENRICHED PROMPT ---
     obj_status = ", ".join([f"{k}:{'DONE' if v else 'TODO'}" for k, v in st.session_state.objectives.items()])
     unit_locs = ", ".join([f"{u}@{loc}" for u, loc in st.session_state.locations.items()])
     
-    # 2. Build the Enriched Prompt
-    # This is "hidden" from the user but visible to the AI
     enriched_prompt = f"""
-    [SYSTEM_STATE_UPDATE]
-    TIME_REMAINING: {st.session_state.mission_time}m
-    SQUAD_LOCATIONS: {unit_locs}
-    OBJECTIVES: {obj_status}
-    VIABILITY: {st.session_state.viability}%
-
-    [COMMANDER_ORDERS]
-    {prompt}
+    [SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Locations:{unit_locs} | Objectives:{obj_status}
+    [COMMANDER_ORDERS] {prompt}
     """
     
-    # 3. ADVANCE MISSION CLOCK
-    #st.session_state.mission_time -= 1
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # 4. ENHANCED DYNAMIC TRACKER (Greedy Matching)
-    name_to_id = {info['name'].lower(): poi_id for poi_id, info in MISSION_DATA.items()}
+    # --- SILENT DATA PARSING ---
     
-    # Create a list of all names and aliases to search for
-    all_place_names = list(name_to_id.keys())
-    for poi in MISSION_DATA.values():
-        # Add the POI name without "The" if applicable for better matching
-        pure_name = poi['name'].lower().replace("the ", "").strip()
-        if pure_name not in all_place_names:
-            all_place_names.append(pure_name)
+    # A. Location Parsing (Suffix Tag)
+    loc_match = re.search(r"\[LOC_DATA: (SAM=[^,]+, DAVE=[^,]+, MIKE=[^\]]+)\]", response_text)
+    if loc_match:
+        for pair in loc_match.group(1).split(", "):
+            unit, loc = pair.split("=")
+            st.session_state.locations[unit] = loc.strip()
 
-    search_pattern = "|".join([re.escape(n) for n in all_place_names])
-    
-    for unit in ["SAM", "DAVE", "MIKE"]:
-        # Find all occurrences of [UNIT]...[Location]
-        # We want the LAST location mentioned in the response for that unit
-        unit_pattern = rf"\[{unit}\].*?({search_pattern})"
-        matches = re.findall(unit_pattern, response_text, re.IGNORECASE)
-        
-        if matches:
-            # We take the last match as the 'current' location
-            hit = matches[-1].lower()
-            
-            # Find the official Canonical Name from MISSION_DATA
-            for poi_id, info in MISSION_DATA.items():
-                if hit in info['name'].lower() or hit == poi_id:
-                    st.session_state.locations[unit] = info['name']
-                    break
-
-    # 5. METIER FULFILLMENT (Refactored for PMC Skills)
-    for unit in ["SAM", "DAVE", "MIKE"]:
-        st.session_state.idle_turns[unit] += 1
-        metier_keywords = {
-            "SAM": r"(bribe|interrogate|flip|negotiate|persuade|alias|intel|social)",
-            "DAVE": r"(breach|neutralize|suppress|clear|secure|ordnance|shove|punch)",
-            "MIKE": r"(hack|scramble|drone|decrypt|intercept|bypass|uplink|sensor)"
-        }
-        pattern = rf"\[{unit}\].*?{metier_keywords[unit]}"
-        if re.search(pattern, response_text, re.IGNORECASE):
-            st.session_state.idle_turns[unit] = 0
-    
-    # 6. TAG PROCESSING (Viability replaces Mana)
-    if "[VIABILITY_BURN:" in response_text:
-        penalty = int(re.search(r"\[VIABILITY_BURN:\s*(\d+)\]", response_text).group(1))
-        st.session_state.viability = max(0, st.session_state.viability - penalty)
-        st.toast(f"🚨 SIGNAL COMPROMISED: -{penalty}% Viability")
-
-    # 7. OBJECTIVE TRACKING (Flips the booleans based on AI confirmation)
-    obj_pattern = r"\[OBJECTIVE_MET:\s*(obj_\w+)\]"
-    obj_matches = re.findall(obj_pattern, response_text)
-    
+    # B. Objective Parsing (Suffix Tag)
+    obj_matches = re.findall(r"\[OBJ_DATA: (obj_\w+)=TRUE\]", response_text)
     for obj_id in obj_matches:
         if obj_id in st.session_state.objectives and not st.session_state.objectives[obj_id]:
             st.session_state.objectives[obj_id] = True
-            st.toast(f"✅ TASK COMPLETE: {obj_id.replace('obj_', '').replace('_', ' ').upper()}")
-            # Logic: If an objective is met, efficiency score goes up
+            st.toast(f"✅ TASK COMPLETE: {obj_id.upper()}")
             st.session_state.efficiency_score += 100
 
-    return response_text
+    # C. Metier/Idle Check (Keep turns advancing)
+    for unit in ["SAM", "DAVE", "MIKE"]:
+        st.session_state.idle_turns[unit] += 1
+        keywords = {"SAM": r"(bribe|negotiate|intel)", "DAVE": r"(breach|neutralize|secure)", "MIKE": r"(hack|drone|bypass)"}
+        if re.search(rf"\[{unit}\].*?{keywords[unit]}", response_text, re.IGNORECASE):
+            st.session_state.idle_turns[unit] = 0
+
+    # D. Clean the Response for UI
+    clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
+    return clean_response
 
 # --- UI LAYOUT ---
 with st.sidebar:
@@ -359,12 +295,10 @@ with col2:
     for unit, icon in tokens.items():
         current_loc_name = st.session_state.locations.get(unit, "South Quay")
         
-        # Match current_loc_name to the MISSION_DATA entry
-        # This handles the "The" and Case Sensitivity issues
-        # Ensure we look up by the exact ID key from your MISSION_DATA dictionary
-        loc_info = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA.get('south_quay'))
+        # Exact match logic against MISSION_DATA
+        target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA.get('south_quay'))
         
-        base_coords = loc_info["coords"]
+        base_coords = target_poi["coords"]
         offset = offsets.get(unit, [0, 0])
         final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
         
