@@ -105,3 +105,30 @@ button[title="View fullscreen"] {
     box-shadow: 0 0 10px rgba(0, 255, 0, 0.6); /* Gundog Green glow */
     border: 1px solid #00FF00 !important;
 }
+
+/* 1. DARK TOASTS: Fixes the light green on white visibility issue */
+[data-testid="stToast"] {
+    background-color: #050505 !important;
+    border: 1px solid #00FF00 !important;
+    border-radius: 5px;
+}
+
+[data-testid="stToast"] [data-testid="stMarkdownContainer"] p {
+    color: #00FF00 !important;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+}
+
+/* 2. ABORT BUTTON: High-contrast Alert Styling */
+div.stButton > button:first-child {
+    background-color: #1a0000 !important; /* Deep red background */
+    color: #FF3333 !important;           /* Bright red text */
+    border: 1px solid #FF3333 !important;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+div.stButton > button:hover {
+    background-color: #FF3333 !important; /* Flash red on hover */
+    color: #000000 !important;
+}
