@@ -127,6 +127,15 @@ def get_dm_response(prompt):
            [LOC_DATA: SAM=Canonical Name, DAVE=Canonical Name, MIKE=Canonical Name]
            [OBJ_DATA: obj_id=TRUE/FALSE]
         3. VOICE TONE: SAM (Professional, arch), DAVE (Laidback, laconic,) MIKE (Geek).
+
+        COMMUNICATION ARCHITECTURE:
+        1. MULTI-UNIT REPORTING: Every response MUST include a SITREP from all three operatives (SAM, DAVE, MIKE). 
+        2. FORMAT: Use bold headers for each unit. 
+        Example:
+        SAM: "Dialogue here..."
+        DAVE: "Dialogue here..."
+        MIKE: "Dialogue here..."
+        3. PERSISTENCE: Even if an operative is idle, they should comment on their surroundings, complain about the local conditions, or respond to their teammates' banter.
         """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
@@ -138,6 +147,9 @@ def get_dm_response(prompt):
     enriched_prompt = f"""
     [SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Locations:{unit_locs} | Objectives:{obj_status}
     [COMMANDER_ORDERS] {prompt}
+
+    [MANDATORY_RESPONSE_GUIDE] 
+    Provide a full SITREP from SAM, DAVE, and MIKE. Use their unique voice tones (SAM: arch/pro, DAVE: laconic, MIKE: geek). Include cross-talk and banter. End with the LOC_DATA and OBJ_DATA tags.
     """
     
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
