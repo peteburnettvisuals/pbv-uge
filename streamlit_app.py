@@ -335,7 +335,7 @@ with col2:
             tooltip=f"INSPECT: {info['name']}"
         ).add_to(m)
 
-    # 4. DYNAMIC SQUAD PLACEMENT (With Offsets)
+   # 4. DYNAMIC SQUAD PLACEMENT (Robust Matching)
     tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
     offsets = {
         "SAM":  [0.00015, 0.00000], 
@@ -344,19 +344,30 @@ with col2:
     }
 
     for unit, icon in tokens.items():
-        current_loc_name = st.session_state.locations.get(unit, "Perimeter")
-        loc_id = current_loc_name.lower().replace(" ", "_")
-        loc_info = MISSION_DATA.get(loc_id, MISSION_DATA.get("perimeter"))
+        # Get the plain text name from session state (e.g., "The Rusty Anchor")
+        current_loc_name = st.session_state.locations.get(unit, "South Quay")
         
-        base_coords = loc_info["coords"]
-        offset = offsets.get(unit, [0, 0])
-        final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
+        # FIND THE POI: Search MISSION_DATA for a name match
+        target_poi = None
+        for poi_id, info in MISSION_DATA.items():
+            if info['name'].lower() == current_loc_name.lower():
+                target_poi = info
+                break
         
-        folium.Marker(
-            final_coords, 
-            icon=icon, 
-            tooltip=f"{unit}: {current_loc_name.upper()}"
-        ).add_to(m)
+        # Fallback to South Quay if no match found
+        if not target_poi:
+            target_poi = MISSION_DATA.get("south_quay")
+
+        if target_poi:
+            base_coords = target_poi["coords"]
+            offset = offsets.get(unit, [0, 0])
+            final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
+            
+            folium.Marker(
+                final_coords, 
+                icon=icon, 
+                tooltip=f"{unit}: {current_loc_name.upper()}"
+            ).add_to(m)
     
     # 5. RENDER (Stability settings)
     st_folium(m, use_container_width=True, key="tactical_map_v2", returned_objects=[])       
