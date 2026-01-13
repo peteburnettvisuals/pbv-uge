@@ -11,7 +11,7 @@
                 <logic>REQUIRED: MIKE to hack manifest locally at the harbor master office.</logic>
             </task>
             <task id="obj_enter_container" status="false">
-                <description>Entry to, or removal of, target container from the Panamax.</description>
+                <description>Entry to, or removal of, target container from the freighter Panamax, and securing the target AA munitions inside.</description>
                 <location_trigger>docking_bay_4</location_trigger>
                 <dependency>obj_identify_container</dependency>
             </task>
@@ -24,6 +24,7 @@
                 <description>Transport of munitions through customs security.</description>
                 <location_trigger>customs_checkpoint</location_trigger>
                 <dependency>obj_remove_container, obj_acquire_transport</dependency>
+                <logic>REQUIRED: munitions will have to pass through the customs checkpoint, so the team will need to work out a solution for that.</logic>
             </task>
             <task id="obj__agency_handover" status="false">
                 <description>Handover of munitions at agency handover point at town plaza.</description>
@@ -129,7 +130,7 @@
             <lat>9.353742</lat>
             <lon>-79.907132</lon>
             <image>loc_customs.jpg</image>
-            <intel>High-risk administrative bottleneck.</intel>
+            <intel>High-risk administrative bottleneck. Needs security clearance to get through with goods.</intel>
             <aliases>customs, checkpoint, security gate, inspection</aliases>
         </poi>
         <poi id="fueling_station">

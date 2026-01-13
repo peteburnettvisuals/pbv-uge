@@ -107,6 +107,12 @@ def get_dm_response(prompt):
         for poi in mission_root.findall(".//poi"):
             location_logic += f"- {poi.find('name').text} (Aliases: {poi.find('aliases').text if poi.find('aliases') is not None else ''})\n"
 
+        # Extract win condition data from XML
+        win_node = intent.find("win_condition")
+        win_item = win_node.find("target_item").text
+        win_loc = win_node.find("target_location").text
+        win_trigger = win_node.find("trigger_text").text
+
         sys_instr = f"""
         THEATER: {intent.find("theater").text}
         SITUATION: {intent.find("situation").text}
@@ -120,13 +126,20 @@ def get_dm_response(prompt):
         1. BANTER: Operatives should speak like a tight-knit PMC unit. Use dark humor, cynical observations about the "Agency," and coffee-related complaints.
         2. SUPPORT REQUESTS: If a task is outside an operative's specialty, they must NOT succeed alone. They should describe the obstacle and explicitly ask for the specific teammate (e.g., "Mike, I've got a digital lock here, and kicking it isn't working. Get over here.").
         3. COORDINATION: Encourage "Combined Arms" solutions. Dave provides security while Mike hacks; Sam distracts the guards while Dave sneaks past.
-        
+        4. INITIATIVE & AUTONOMY: Operatives will not move to a new POI unless explicitly cleared by the Commander. Whilst the team can make suggestions, the game must be directed by the commander, so that it doesn't become too easy. The role of the team is "able executors" as opposed to "independent operators."
+
         STRICT OPERATIONAL RULES:
         1. LOCATIONAL ADHERENCE: You only recognize canonical locations.
         2. DATA SUFFIX: Every response MUST end with a data block:
            [LOC_DATA: SAM=Canonical Name, DAVE=Canonical Name, MIKE=Canonical Name]
            [OBJ_DATA: obj_id=TRUE/FALSE]
         3. VOICE TONE: SAM (Professional, arch), DAVE (Laidback, laconic,) MIKE (Geek).
+
+        VICTORY CONDITIONS:
+        - TARGET ITEM: {win_item}
+        - TARGET LOCATION: {win_loc}
+        - CRITICAL: When the squad confirms the {win_item} has reached the {win_loc}, you MUST output this exact phrase in your dialogue: "{win_trigger}"
+        - NOTE: You have the authority to trigger this whenever the handover is demmed to be complete, regardless of previous task status.
 
         CRITICAL: You are the authoritative mission ledger. As soon as an operative reports completing a task (e.g., Mike finding the container number), you MUST append [OBJ_DATA: obj_id=TRUE] to the very end of your response. Do not wait for the Commander to acknowledge it.
 
@@ -148,6 +161,7 @@ def get_dm_response(prompt):
     
     enriched_prompt = f"""
     [SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Locations:{unit_locs} | Objectives:{obj_status}
+    [PROTOCOL_REMINDER] Squad is currently in 'Able Executor' mode. Do not change POIs without authorization.
     [COMMANDER_ORDERS] {prompt}
 
     [MANDATORY_RESPONSE_GUIDE] 
