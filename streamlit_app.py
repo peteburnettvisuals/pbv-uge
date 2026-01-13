@@ -164,25 +164,27 @@ def get_dm_response(prompt):
     #st.session_state.mission_time -= 1
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # 4. ENHANCED DYNAMIC TRACKER (Strict Canonical Adherence)
-    # We build the search pattern from the actual XML data keys and names
-    valid_names = [info['name'] for info in MISSION_DATA.values()]
-    valid_ids = list(MISSION_DATA.keys())
-    search_pattern = "|".join(set(valid_names + valid_ids))
+    # 4. ENHANCED DYNAMIC TRACKER
+    # Create a lookup for both IDs and Names
+    name_to_id = {info['name'].lower(): poi_id for poi_id, info in MISSION_DATA.items()}
+    id_to_name = {poi_id.lower(): info['name'] for poi_id, info in MISSION_DATA.items()}
+    
+    # Search pattern includes all canonical names and IDs
+    search_pattern = "|".join([re.escape(n) for n in name_to_id.keys()] + [re.escape(i) for i in id_to_name.keys()])
     
     for unit in ["SAM", "DAVE", "MIKE"]:
-        # Pattern looks for: [DAVE] ... Harbor Master Office
-        pattern = rf"\[{unit}\].*?({search_pattern})"
+        # Look for [UNIT] followed by a mention of a location later in the same message block
+        # We look for the "Arrived at" or "Moving to" context specifically
+        pattern = rf"\[{unit}\].*?(?:Arrived at|Moving to|at)\s+({search_pattern})"
         loc_match = re.search(pattern, response_text, re.IGNORECASE)
         
         if loc_match:
-            detected_name = loc_match.group(1).lower().replace(" ", "_")
+            hit = loc_match.group(1).lower()
+            # Resolve the hit to the official Canonical Name
+            final_name = id_to_name.get(hit) or next((info['name'] for n, poi_id in name_to_id.items() if n == hit for poi_id, info in MISSION_DATA.items() if poi_id == poi_id), None)
             
-            # Match the detected string back to a valid POI ID
-            for poi_id, info in MISSION_DATA.items():
-                if detected_name == poi_id or detected_name == info['name'].lower().replace(" ", "_"):
-                    st.session_state.locations[unit] = info['name']
-                    break
+            if final_name:
+                st.session_state.locations[unit] = final_name
 
     # 5. METIER FULFILLMENT (Refactored for PMC Skills)
     for unit in ["SAM", "DAVE", "MIKE"]:
@@ -346,30 +348,21 @@ with col2:
     }
 
     for unit, icon in tokens.items():
-        # Get the plain text name from session state (e.g., "The Rusty Anchor")
         current_loc_name = st.session_state.locations.get(unit, "South Quay")
         
-        # FIND THE POI: Search MISSION_DATA for a name match
-        target_poi = None
-        for poi_id, info in MISSION_DATA.items():
-            if info['name'].lower() == current_loc_name.lower():
-                target_poi = info
-                break
+        # Match current_loc_name to the MISSION_DATA entry
+        # This handles the "The" and Case Sensitivity issues
+        loc_info = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc_name.lower()), MISSION_DATA['south_quay'])
         
-        # Fallback to South Quay if no match found
-        if not target_poi:
-            target_poi = MISSION_DATA.get("south_quay")
-
-        if target_poi:
-            base_coords = target_poi["coords"]
-            offset = offsets.get(unit, [0, 0])
-            final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
-            
-            folium.Marker(
-                final_coords, 
-                icon=icon, 
-                tooltip=f"{unit}: {current_loc_name.upper()}"
-            ).add_to(m)
+        base_coords = loc_info["coords"]
+        offset = offsets.get(unit, [0, 0])
+        final_coords = [base_coords[0] + offset[0], base_coords[1] + offset[1]]
+        
+        folium.Marker(
+            final_coords, 
+            icon=icon, 
+            tooltip=f"{unit}: {current_loc_name.upper()}"
+        ).add_to(m)
     
     # 5. RENDER (Stability settings)
     st_folium(m, use_container_width=True, key="tactical_map_v2", returned_objects=[])       
