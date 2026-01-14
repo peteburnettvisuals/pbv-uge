@@ -62,6 +62,14 @@
         </unit>
     </squad_profiles> 
     <locations>
+        <poi id="insertion_point">
+            <name>Insertion Point</name>
+            <lat>9.350765</lat>
+            <lon>-79.905095</lon>
+            <image>loc_perimeter.jpg</image>
+            <intel>Initial insertion point for the squad.</intel>
+            <aliases>south dock, insertion point, start point, IP, LZ</aliases>
+        </poi>
         <poi id="harbor_master">
             <name>Harbor Master Office</name>
             <lat>9.3555</lat>
@@ -101,14 +109,6 @@
             <image>loc_n_perimeter.jpg</image>
             <intel>Chain-link boundary and primary vehicle gate.</intel>
             <aliases>north gate, main gate, north fence, vehicle gate</aliases>
-        </poi>
-        <poi id="insertion_point">
-            <name>Insertion Point</name>
-            <lat>9.350765</lat>
-            <lon>-79.905095</lon>
-            <image>loc_perimeter.jpg</image>
-            <intel>Initial insertion point for the squad.</intel>
-            <aliases>south dock, insertion point, start point, IP, LZ</aliases>
         </poi>
         <poi id="container_stacks">
             <name>Container Stacks</name>

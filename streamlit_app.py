@@ -9,13 +9,6 @@ from streamlit_folium import st_folium
 # --- 1. CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal HUD", initial_sidebar_state="collapsed")
 
-if "locations" not in st.session_state:
-    st.session_state.locations = {
-        "SAM": "insertion_point", 
-        "DAVE": "insertion_point", 
-        "MIKE": "insertion_point"
-    }
-
 def local_css(file_name):
     try:
         with open(file_name) as f:
@@ -51,7 +44,7 @@ if "objectives" not in st.session_state:
 if "viability" not in st.session_state:
     st.session_state.update({
         "viability": 100, "mission_time": 60, "messages": [], "chat_session": None,
-        "locations": {"SAM": "Insertion Point", "DAVE": "Insertion Point", "MIKE": "Insertion Point"},
+        "locations": {"SAM": "insertion_point", "DAVE": "insertion_point", "MIKE": "insertion_point"},
         "discovered_locations": [],
     })
 
