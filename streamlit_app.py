@@ -129,6 +129,18 @@ def get_dm_response(prompt):
 
 # --- UI LAYOUT ---
 
+# --- 1. LOGIC ENGINE (Run this BEFORE the UI) ---
+
+# A. Startup Trigger: Force a SitRep if the squad hasn't spoken yet
+if not any(msg["role"] == "assistant" for msg in st.session_state.messages):
+    get_dm_response("Team is at the insertion point. Give me a full SITREP.")
+    # We don't necessarily need st.rerun() here if this is at the top, 
+    # as the rest of the script will now have data to work with.
+
+# B. Bubble Data Retrieval: Get the latest radio chatter for the map
+latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "assistant"), None)
+current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant["content"], dict)) else {}
+
 # Define Map Assets
 sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
 dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
@@ -155,10 +167,7 @@ for loc_id, info in MISSION_DATA.items():
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#444"};">{info["name"].upper()}</div>')).add_to(m)
 
-# BUBBLE LOGIC: Finding the last assistant radio chatter
-latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "assistant"), None)
-current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant["content"], dict)) else {}
-
+# Now current_comms is guaranteed to have data, so the bubbles WILL show up
 for unit, icon in tokens.items():
     loc_name = st.session_state.locations.get(unit, "Insertion Point")
     poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
@@ -170,7 +179,8 @@ for unit, icon in tokens.items():
         bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
-st_folium(m, height=700, use_container_width=True, key="tactical_hud_stable")
+# --- STEP 4: RENDER THE MAP ---
+st_folium(m, height=800, use_container_width=True, key="tactical_hud_final")
 
 # 2. BOTTOM TIER
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
@@ -201,7 +211,3 @@ with col_right:
         for obj_id, status in st.session_state.objectives.items():
             st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")
 
-# STARTUP TRIGGER: Ensure SITREP fires if squad is silent
-if not any(msg["role"] == "assistant" for msg in st.session_state.messages):
-    get_dm_response("Team is at the insertion point. Give me a full SITREP.")
-    st.rerun()
