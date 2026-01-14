@@ -9,6 +9,13 @@ from streamlit_folium import st_folium
 # --- 1. CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal HUD", initial_sidebar_state="collapsed")
 
+if "locations" not in st.session_state:
+    st.session_state.locations = {
+        "SAM": "insertion_point", 
+        "DAVE": "insertion_point", 
+        "MIKE": "insertion_point"
+    }
+
 def local_css(file_name):
     try:
         with open(file_name) as f:
@@ -124,12 +131,19 @@ m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_m
 for loc_id, info in MISSION_DATA.items():
     is_discovered = loc_id in st.session_state.discovered_locations
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
-    folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#444"};">{info["name"].upper()}</div>')).add_to(m)
+    folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#999"};">{info["name"].upper()}</div>')).add_to(m)
 
 # Squad Render Loop
 for unit, icon in tokens.items():
-    loc_name = st.session_state.locations.get(unit, "Insertion Point")
-    poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
+    # Get the ID (e.g., 'insertion_point')
+    loc_id = st.session_state.locations.get(unit, "insertion_point")
+    
+    # Find the POI by ID first, then fall back to name, then first available
+    poi = MISSION_DATA.get(loc_id) or \
+          next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_id.lower()), 
+          list(MISSION_DATA.values())[0])
+    
+    # Now the team will have a real lat/long to stand on
     coords = [poi["coords"][0] + offsets[unit][0], poi["coords"][1] + offsets[unit][1]]
     folium.Marker(coords, icon=icon, tooltip=unit).add_to(m)
     
@@ -140,7 +154,7 @@ for unit, icon in tokens.items():
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
 # 🗺️ HERO MAP
-st_folium(m, height=800, use_container_width=True, key="tactical_hud_final")
+st_folium(m, height=700, use_container_width=True, key="tactical_hud_final")
 
 # 🖥️ CONTROL CONSOLE
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
