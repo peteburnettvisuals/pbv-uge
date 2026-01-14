@@ -382,6 +382,13 @@ else:
         
         st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
 
+    # Check if this is a brand new session to kick off the "Auto SITREP"
+    if not st.session_state.messages:
+        # Use a placeholder to prevent infinite loops, then call the DM
+        with st.spinner("Establishing Satellite Uplink..."):
+            response = get_dm_response("Team is at the insertion point. Report in.")
+            st.rerun()
+    
     # Chat Input outside columns but inside the 'else'
     if prompt := st.chat_input("Issue Commands..."):
         st.session_state.mission_time -= 1 
