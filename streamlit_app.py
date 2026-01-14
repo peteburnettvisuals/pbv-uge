@@ -77,15 +77,6 @@ def get_image_url(filename):
         return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
     except: return ""
 
-The reason the team is silent is that the Startup Trigger logic at the bottom of the script is currently stuck. It checks for st.session_state.messages, but since the get_dm_response function adds a "user" message before the "assistant" response, the logic thinks the session has started and stops triggering the initial report.
-
-Additionally, we need to ensure the Map Bubble rendering logic is looking at the correct data structure.
-
-🛠️ The Fix: Full Code Reconciliation
-Replace your current script from parse_operative_dialogue onwards with this stabilized version. It includes a more robust startup trigger and ensures the map bubbles have the data they need.
-
-Python
-
 def parse_operative_dialogue(text):
     pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
     segments = re.findall(pattern, text, re.DOTALL)
