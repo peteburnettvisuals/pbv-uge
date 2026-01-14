@@ -84,13 +84,22 @@ def get_image_url(filename):
     except: return ""
 
 def parse_operative_dialogue(text):
-    """Splits the raw AI response into a dictionary by operative name."""
-    # This matches SAM: [text], DAVE: [text], etc.
+    """Splits raw AI response and cleans up Markdown/Quotes."""
     pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
     segments = re.findall(pattern, text, re.DOTALL)
     
-    # Return a dict: {'SAM': 'message', 'DAVE': '...', 'MIKE': '...'}
-    return {name: msg.strip() for name, msg in segments}
+    cleaned_dict = {}
+    for name, msg in segments:
+        # 1. Strip whitespace
+        m = msg.strip()
+        # 2. Remove double asterisks (bolding)
+        m = m.replace("**", "")
+        # 3. Remove outer speech marks if the AI wrapped the whole line in them
+        m = m.strip('"').strip("'")
+        
+        cleaned_dict[name] = m
+        
+    return cleaned_dict
 
 # --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
@@ -382,10 +391,16 @@ else:
         
         st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
 
+    # Check if this is a brand new session to kick off the "Auto SITREP"
+    if not st.session_state.messages:
+        # Use a placeholder to prevent infinite loops, then call the DM
+        with st.spinner("Establishing Satellite Uplink..."):
+            response = get_dm_response("Team is at the insertion point. Report in.")
+            st.rerun()
+    
     # Chat Input outside columns but inside the 'else'
     if prompt := st.chat_input("Issue Commands..."):
         st.session_state.mission_time -= 1 
         st.session_state.messages.append({"role": "user", "content": prompt})
         response = get_dm_response(prompt)
-        st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
