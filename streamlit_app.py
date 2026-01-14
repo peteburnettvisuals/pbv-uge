@@ -6,17 +6,19 @@ import datetime
 import folium
 from streamlit_folium import st_folium
 
-# --- 1. CONFIGURATION & INITIALIZATION ---
-st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal HUD", initial_sidebar_state="collapsed")
 
 def local_css(file_name):
-    try:
-        with open(file_name) as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    except: pass
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 local_css("style.css")
 
+# --- CONFIGURATION & INITIALIZATION ---
+st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal Mission")
+
+
+
+# 1. ENGINE UTILITIES
 def load_mission(file_path):
     try:
         tree = ET.parse(file_path)
@@ -35,28 +37,62 @@ def load_mission(file_path):
         st.error(f"Mission Data Corruption: {e}")
         return {}
 
+# 2. GLOBAL INITIALIZATION
 MISSION_DATA = load_mission('mission_data.xml')
 
-if "objectives" not in st.session_state:
-    tree = ET.parse('mission_data.xml')
-    st.session_state.objectives = {t.get('id'): (t.get('status').lower() == 'true') for t in tree.findall('.//task')}
+# Parse objectives immediately for the Sidebar UI
+def get_initial_objectives(file_path):
+    tree = ET.parse(file_path)
+    return {t.get('id'): (t.get('status').lower() == 'true') for t in tree.findall('.//task')}
 
+if "objectives" not in st.session_state:
+    st.session_state.objectives = get_initial_objectives('mission_data.xml')
+
+# Unified Session State Initialization
 if "viability" not in st.session_state:
     st.session_state.update({
-        "viability": 100, "mission_time": 60, "messages": [], "chat_session": None,
-        "locations": {"SAM": "insertion_point", "DAVE": "insertion_point", "MIKE": "insertion_point"},
-        "discovered_locations": [],
+        "viability": 100,
+        "mission_time": 60,
+        "messages": [],
+        "chat_session": None,
+        "efficiency_score": 1000,
+        "locations": {"SAM": "Insertion Point", "DAVE": "Insertion Point", "MIKE": "Insertion Point"},
+        "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
     })
 
+if "discovered_locations" not in st.session_state:
+    st.session_state.discovered_locations = []
+
+# --- UTILITY FUNCTIONS ---
+BUCKET_NAME = "uge-repository-cu32"
+
+@st.cache_resource
+def get_gcs_client():
+    from google.oauth2 import service_account
+    from google.cloud import storage
+    creds_info = st.secrets["gcp_service_account"]
+    credentials = service_account.Credentials.from_service_account_info(creds_info)
+    return storage.Client(credentials=credentials, project=creds_info["project_id"])
+
+@st.cache_data(ttl=3600) # Cache for 1 hour to match the signed URL expiration
+def get_image_url(filename):
+    if not filename: return ""
+    try:
+        client = get_gcs_client()
+        blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
+        return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
+    except: return ""
+
 def parse_operative_dialogue(text):
+    """Splits the raw AI response into a dictionary by operative name."""
+    # This matches SAM: [text], DAVE: [text], etc.
     pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
     segments = re.findall(pattern, text, re.DOTALL)
-    cleaned_dict = {}
-    for name, msg in segments:
-        m = msg.strip().replace("**", "").strip('"').strip("'")
-        cleaned_dict[name] = m
-    return cleaned_dict
+    
+    # Return a dict: {'SAM': 'message', 'DAVE': '...', 'MIKE': '...'}
+    return {name: msg.strip() for name, msg in segments}
 
+# --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
     # --- CONFIG & XML LOAD ---
     safety_settings = [
@@ -146,134 +182,210 @@ def get_dm_response(prompt):
     
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # --- DATA EXTRACTION FOR UI (The "Glue") ---
+    # --- SILENT DATA PARSING ---
     
-    # 1. Update Locations for Map Markers
+    # A. Location Parsing (Suffix Tag)
     loc_match = re.search(r"\[LOC_DATA: (SAM=[^,]+, DAVE=[^,]+, MIKE=[^\]]+)\]", response_text)
     if loc_match:
         for pair in loc_match.group(1).split(", "):
             unit, loc = pair.split("=")
             st.session_state.locations[unit] = loc.strip()
 
-    # 2. Update Objectives for Dashboard
+    # A1. DISCOVERY LOGIC
+    for unit, loc_name in st.session_state.locations.items():
+        # Find the POI ID for this location name
+        target_poi_id = next((pid for pid, info in MISSION_DATA.items() if info['name'] == loc_name), None)
+        
+        if target_poi_id and target_poi_id not in st.session_state.discovered_locations:
+            # Mark as discovered
+            st.session_state.discovered_locations.append(target_poi_id)
+            
+            # Fetch the image and intel
+            poi_info = MISSION_DATA[target_poi_id]
+            img_url = get_image_url(poi_info['image'])
+            
+            # Inject a "Recon Report" into the chat history
+            recon_msg = {
+                "role": "assistant", 
+                "content": f"🖼️ **RECON UPLINK: {loc_name.upper()}**\n\n{poi_info['intel']}\n\n![{loc_name}]({img_url})"
+            }
+            st.session_state.messages.append(recon_msg)
+            st.toast(f"📡 New Intel: {loc_name}")
+
+    # B. Objective Parsing (Suffix Tag)
+    # Ensure the AI knows it must report Objective status too
+    # Add this to your OBJ_DATA parsing in Step 7
     obj_data_matches = re.findall(r"\[OBJ_DATA: (obj_\w+)=TRUE\]", response_text)
+    
     for obj_id in obj_data_matches:
-        if obj_id in st.session_state.objectives:
+        if obj_id in st.session_state.objectives and not st.session_state.objectives[obj_id]:
             st.session_state.objectives[obj_id] = True
             st.toast(f"🎯 OBJECTIVE REACHED: {obj_id.upper()}")
+            st.session_state.efficiency_score += 150 # Bonus for clean execution
 
-    # 3. Clean Text & Parse for Map Bubbles
+    # After receiving response_text from Gemini
+    win_trigger = "Mission Complete: Assets in Transit"
+    
+    if win_trigger.lower() in response_text.lower():
+        # Calculate time taken
+        start_time = 60
+        time_remaining = st.session_state.mission_time
+        st.session_state.time_elapsed = start_time - time_remaining
+        st.session_state.mission_complete = True        
+
+    # D. Clean and Parse
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
+
+    # Create the split dictionary for the UI and Map Bubbles
     split_dialogue = parse_operative_dialogue(clean_response)
 
-    # 4. Save to History (Critical for Map Comms)
+    # Store the split dict instead of just the string
     st.session_state.messages.append({
         "role": "assistant", 
         "content": split_dialogue,
-        "display_text": clean_response
+        "raw_text": clean_response # Keep raw text just in case
     })
-    
+
     return clean_response
 
-# --- 2. LOGIC ENGINE (Crucial: Process state BEFORE drawing) ---
 
-# Startup Trigger: Forces the first SITREP if none exists
-if not any(msg.get("role") == "assistant" for msg in st.session_state.messages):
-    get_dm_response("Team is at the insertion point. Give me a full SITREP.")
-    st.rerun()
 
-# Aggressive Comms Search: Finds the most recent radio chatter dictionary
-latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg.get("role") == "assistant"), None)
-current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant.get("content"), dict)) else {}
-
-# --- 3. UI RENDERING ---
-
-st.markdown("""
-    <style>
-        .block-container {padding-top: 1rem; padding-bottom: 0rem;}
-        [data-testid="column"] {margin-top: -65px !important;}
-        .stVerticalBlock {gap: 0rem !important;}
-        .stButton button {width: 100%; background-color: rgba(255,0,0,0.1); border: 1px solid #ff4b4b; color: #ff4b4b;}
-        .stButton button:hover {background-color: rgba(255,0,0,0.3); border: 1px solid #ff4b4b;}
-    </style>
-""", unsafe_allow_html=True)
-
-# Assets
-sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
-dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
-mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
-tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
-offsets = {"SAM": [0.00035, 0], "DAVE": [-0.00025, 0.00035], "MIKE": [-0.00025, -0.00035]}
-b_offsets = {"SAM": [0.0008, 0.0002], "DAVE": [-0.0004, 0.0007], "MIKE": [0.0008, -0.0004]}
-
-m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
-
-# Map Markers (Static POIs)
-for loc_id, info in MISSION_DATA.items():
-    is_discovered = loc_id in st.session_state.discovered_locations
-    folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
-    folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#999"};">{info["name"].upper()}</div>')).add_to(m)
-
-# Squad Tokens Rendering
-# Updated Squad Loop with 'Pinned' Bubbles
-for unit, icon in tokens.items():
-    loc_name = st.session_state.locations.get(unit, "insertion_point")
-    poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
+# --- UI LAYOUT ---
+with st.sidebar:
+    st.header("🦅 GUNDOG C2")
     
-    # Character Anchor
-    coords = [poi["coords"][0] + offsets[unit][0], poi["coords"][1] + offsets[unit][1]]
-    folium.Marker(coords, icon=icon).add_to(m)
+    # Dual-Metric HUD
+    st.progress(st.session_state.viability / 100, text=f"PLAUSIBLE DENIABILITY: {st.session_state.viability}%")
     
-    if unit in current_comms:
-        # We pin the bubble to the EXACT same spot, but use a CSS 'offset' to push it up
-        bubble_html = f"""
-        <div style="
-            position: relative;
-            bottom: 60px; 
-            left: 20px;
-            background: rgba(0, 20, 0, 0.9); 
-            border: 2px solid #0f0; 
-            color: #0f0; 
-            padding: 10px; 
-            border-radius: 4px; 
-            width: 250px; 
-            font-family: 'Courier New', monospace;
-            font-size: 10pt;
-            line-height: 1.2;
-            box-shadow: 0px 0px 15px #0f0;
-            z-index: 1000;
-        ">
-            <strong style="text-transform: uppercase; border-bottom: 1px solid #0f0;">{unit}</strong><br>
-            {current_comms[unit]}
-        </div>
-        """
-        folium.Marker(
-            coords, 
-            icon=folium.DivIcon(icon_size=(0,0), html=bubble_html)
-        ).add_to(m)
-
-# 🗺️ HERO MAP
-st_folium(m, height=700, use_container_width=True, key="tactical_hud_final")
-
-# 🖥️ CONTROL CONSOLE
-col_left, col_right = st.columns([0.65, 0.35], gap="small")
-
-with col_left:
-    if prompt := st.chat_input("TRANSMIT COMMANDS..."):
-        st.session_state.mission_time -= 1 
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        get_dm_response(prompt)
+    st.metric(label="MISSION TIME REMAINING", value=f"{st.session_state.mission_time} MIN")
+    
+    # Fixed Abort Logic
+    if st.button("🚨 ABORT MISSION (RESET)"):
+        st.session_state.clear() # Clears everything to trigger a fresh boot
         st.rerun()
 
-
-
-with col_right:
-    m1, m2 = st.columns(2)
-    m1.metric("TIME", f"{st.session_state.mission_time}m")
-    m2.metric("VIS", f"{st.session_state.viability}%")
- 
+    # Add this to your Sidebar logic:
+    st.subheader("📝 MISSION CHECKLIST")
+    for obj_id, status in st.session_state.objectives.items():
+        label = obj_id.replace('obj_', '').replace('_', ' ').title()
+        if status:
+            st.write(f"✅ ~~{label}~~")
+        else:
+            st.write(f"◻️ {label}")
     
-    # ABORT BUTTON (At the very bottom of the dashboard)
-    if st.button("🚨 ABORT MISSION"):
-        st.session_state.clear()
+         
+
+     
+    st.subheader("👥 SQUAD DOSSIERS")
+    unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
+    
+    # Mapping to your local .png files
+    if unit_view == "DAVE":
+        st.image("dave.png", use_container_width=True) 
+        st.warning("SPECIALTY: FORCE (90) | WEAKNESS: NEG (10)")
+    elif unit_view == "SAM":
+        st.image("sam.png", use_container_width=True)
+        st.success("SPECIALTY: NEG (95) | WEAKNESS: FORCE (25)")
+    else:
+        st.image("mike.png", use_container_width=True)
+        st.info("SPECIALTY: TECH (85) | WEAKNESS: FORCE (35)")
+
+    st.divider()
+    st.subheader("📊 EFFICIENCY: " + str(st.session_state.efficiency_score))
+
+
+# --- MAIN TERMINAL ---
+
+if st.session_state.get("mission_complete", False):
+    # --- MISSION SUCCESS UI ---
+    st.balloons()
+    st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE!</h1>", unsafe_allow_html=True)
+    
+    col_a, col_b, col_c = st.columns([1, 2, 1])
+    with col_b:
+        # Success banner placeholder
+        st.metric("TOTAL MISSION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
+        st.metric("VIABILITY REMAINING", f"{st.session_state.viability}%")
+        
+        score = (st.session_state.viability * 10) - (st.session_state.get('time_elapsed', 0) * 5)
+        st.subheader(f"FINAL RATING: {max(0, score)} PTS")
+        
+        if st.button("REDEPLOY (NEW MISSION)"):
+            st.session_state.clear()
+            st.rerun()
+else:
+    # --- ACTIVE MISSION UI ---
+    col1, col2 = st.columns([0.4, 0.6])
+
+    with col1:
+        st.markdown("### 📡 COMMS FEED")
+        chat_container = st.container(height=650, border=True)
+        with chat_container:
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    with st.chat_message("user"):
+                        st.write(msg["content"])
+                else:
+                    # It's the Assistant (The Squad)
+                    dialogue_dict = msg["content"]
+                    
+                    # If it's the dictionary format, render separate bubbles
+                    if isinstance(dialogue_dict, dict):
+                        for operative, text in dialogue_dict.items():
+                            # Map to your local images
+                            avatar_img = f"{operative.lower()}.png" 
+                            
+                            with st.chat_message(operative.lower(), avatar=avatar_img):
+                                st.markdown(f"**{operative}**")
+                                st.write(text)
+                    else:
+                        # Fallback for old string messages or Recon reports
+                        with st.chat_message("assistant"):
+                            st.write(msg["content"])
+
+    with col2:
+        st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
+        
+        # Define assets
+        sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+        dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+        mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
+        
+        m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
+        
+        # Fog of War & Discovery Render
+        for loc_id, info in MISSION_DATA.items():
+            is_discovered = loc_id in st.session_state.discovered_locations
+            marker_color = "#00FF00" 
+            fill_opac = 0.2 if is_discovered else 0.02
+            
+            if is_discovered:
+                loc_img_url = get_image_url(info["image"])
+                popup_html = f'<div style="width:200px;background:#000;padding:10px;border:1px solid #0f0;"><h4 style="color:#0f0;">{info["name"]}</h4><img src="{loc_img_url}" width="100%"><p style="color:#0f0;font-size:10px;">{info["intel"]}</p></div>'
+            else:
+                popup_html = f'<div style="width:150px;background:#000;padding:10px;"><h4 style="color:#666;">{info["name"]}</h4><p style="color:#666;font-size:10px;">[RECON REQUIRED]</p></div>'
+
+            folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
+            folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
+
+        # Squad Tokens
+        tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+        offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
+
+        for unit, icon in tokens.items():
+            current_loc = st.session_state.locations.get(unit, "Insertion Point")
+            # Robust matching POI by name
+            target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('south_quay'))
+            
+            final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
+            folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
+        
+        st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
+
+    # Chat Input outside columns but inside the 'else'
+    if prompt := st.chat_input("Issue Commands..."):
+        st.session_state.mission_time -= 1 
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        response = get_dm_response(prompt)
+        st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
