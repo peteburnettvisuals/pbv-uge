@@ -324,8 +324,7 @@ else:
     mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
 
     # --- 2. TOP ROW: FULL-WIDTH TACTICAL MAP ---
-    st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
-    
+       
     m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
     
     # Discovery & POI Render
@@ -371,23 +370,30 @@ else:
     col_chat, col_dash = st.columns([0.6, 0.4])
 
     with col_chat:
-        st.markdown("### 📡 COMMS TERMINAL")
         with st.container(height=400, border=True):
-             for msg in st.session_state.messages:
-                 if msg["role"] == "user":
-                     st.markdown(f"**COMMANDER:** {msg['content']}")
-                 elif isinstance(msg["content"], dict):
-                     for op, text in msg["content"].items():
-                         st.markdown(f"*{op}:* {text}")
+            # Startup trigger (unchanged)
+            if not st.session_state.messages:
+                with st.spinner("Establishing Satellite Uplink..."):
+                    get_dm_response("Team is at the insertion point. Report in.")
+                    st.rerun()
+
+            if prompt := st.chat_input("Issue Commands..."):
+                st.session_state.mission_time -= 1 
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                get_dm_response(prompt)
+                st.rerun() 
+             
+             
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    st.markdown(f"**COMMANDER:** {msg['content']}")
+                elif isinstance(msg["content"], dict):
+                    for op, text in msg["content"].items():
+                        st.markdown(f"*{op}:* {text}")
         
-        if prompt := st.chat_input("Issue Commands..."):
-            st.session_state.mission_time -= 1 
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            get_dm_response(prompt)
-            st.rerun()
+        
 
     with col_dash:
-        st.markdown("### 📊 MISSION DASHBOARD")
         m1, m2 = st.columns(2)
         m1.metric("TIME", f"{st.session_state.mission_time}m")
         m2.metric("DENIABILITY", f"{st.session_state.viability}%")
@@ -399,8 +405,3 @@ else:
             label = obj_id.replace('obj_', '').replace('_', ' ').title()
             st.write(f"{'✅' if status else '◽'} {label}")
 
-# Startup trigger (unchanged)
-if not st.session_state.messages:
-    with st.spinner("Establishing Satellite Uplink..."):
-        get_dm_response("Team is at the insertion point. Report in.")
-        st.rerun()
