@@ -180,7 +180,7 @@ for unit, icon in tokens.items():
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
 # --- STEP 4: RENDER THE MAP ---
-st_folium(m, height=800, use_container_width=True, key="tactical_hud_final")
+st_folium(m, height=650, use_container_width=True, key="tactical_hud_final")
 
 # 2. BOTTOM TIER
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
