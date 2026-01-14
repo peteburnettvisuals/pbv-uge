@@ -58,33 +58,88 @@ def parse_operative_dialogue(text):
     return cleaned_dict
 
 def get_dm_response(prompt):
+    # --- CONFIG & XML LOAD ---
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+    ]
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.3})
+    model = genai.GenerativeModel('gemini-2.0-flash', 
+                                  generation_config={"temperature": 0.3},
+                                  safety_settings=safety_settings)
+
     mission_tree = ET.parse("mission_data.xml")
     mission_root = mission_tree.getroot()
     intent = mission_root.find("intent")
     
+    # --- SYSTEM INSTRUCTION (High Fidelity) ---
     if st.session_state.chat_session is None:
-        sys_instr = f"THEATER: {intent.find('theater').text}\nYOU ARE: PMC Tactical Multiplexer. End with [LOC_DATA: SAM=Loc, DAVE=Loc, MIKE=Loc] and [OBJ_DATA: obj_id=TRUE]. PROTOCOL: Multi-unit reporting (SAM, DAVE, MIKE) required."
+        location_logic = ""
+        for poi in mission_root.findall(".//poi"):
+            location_logic += f"- {poi.find('name').text} (Aliases: {poi.find('aliases').text if poi.find('aliases') is not None else ''})\n"
+
+        win_node = intent.find("win_condition")
+        win_item = win_node.find("target_item").text
+        win_loc = win_node.find("target_location").text
+        win_trigger = win_node.find("trigger_text").text
+
+        sys_instr = f"""
+        THEATER: {intent.find("theater").text}
+        SITUATION: {intent.find("situation").text}
+        CONSTRAINTS: {intent.find("constraints").text}
+        CANONICAL LOCATIONS:
+        {location_logic}
+        
+        YOU ARE: The tactical multiplexer for Gundogs PMC.
+        OPERATIONAL PROTOCOLS: Banter, Support Requests, Coordination, and Initiative/Autonomy rules apply.
+        STRICT RULES: End every response with [LOC_DATA: SAM=Loc, DAVE=Loc, MIKE=Loc] and [OBJ_DATA: obj_id=TRUE/FALSE].
+        VOICE: SAM (Arch), DAVE (Laconic), MIKE (Geek).
+        VICTORY: Use phrase "{win_trigger}" on completion.
+        """
         st.session_state.chat_session = model.start_chat(history=[])
         st.session_state.chat_session.send_message(sys_instr)
 
-    enriched_prompt = f"[SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Commander Orders: {prompt}"
+    # --- ENRICHED PROMPT ---
+    obj_status = ", ".join([f"{k}:{'DONE' if v else 'TODO'}" for k, v in st.session_state.objectives.items()])
+    unit_locs = ", ".join([f"{u}@{loc}" for u, loc in st.session_state.locations.items()])
+    
+    enriched_prompt = f"""
+    [SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Locations:{unit_locs} | Objectives:{obj_status}
+    [COMMANDER_ORDERS] {prompt}
+    [MANDATORY] Provide SITREPs for SAM, DAVE, MIKE. End with LOC_DATA and OBJ_DATA tags.
+    """
+    
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # Update Locations
+    # --- DATA EXTRACTION FOR UI (The "Glue") ---
+    
+    # 1. Update Locations for Map Markers
     loc_match = re.search(r"\[LOC_DATA: (SAM=[^,]+, DAVE=[^,]+, MIKE=[^\]]+)\]", response_text)
     if loc_match:
         for pair in loc_match.group(1).split(", "):
             unit, loc = pair.split("=")
             st.session_state.locations[unit] = loc.strip()
 
-    # Clean & Parse
+    # 2. Update Objectives for Dashboard
+    obj_data_matches = re.findall(r"\[OBJ_DATA: (obj_\w+)=TRUE\]", response_text)
+    for obj_id in obj_data_matches:
+        if obj_id in st.session_state.objectives:
+            st.session_state.objectives[obj_id] = True
+            st.toast(f"🎯 OBJECTIVE REACHED: {obj_id.upper()}")
+
+    # 3. Clean Text & Parse for Map Bubbles
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     split_dialogue = parse_operative_dialogue(clean_response)
 
-    # Save to history: 'content' is the dict for map, 'display_text' is for the log
-    st.session_state.messages.append({"role": "assistant", "content": split_dialogue, "display_text": clean_response})
+    # 4. Save to History (Critical for Map Comms)
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": split_dialogue,
+        "display_text": clean_response
+    })
+    
     return clean_response
 
 # --- 2. LOGIC ENGINE (Crucial: Process state BEFORE drawing) ---
