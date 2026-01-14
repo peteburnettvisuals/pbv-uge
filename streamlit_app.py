@@ -181,24 +181,29 @@ for loc_id, info in MISSION_DATA.items():
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#999"};">{info["name"].upper()}</div>')).add_to(m)
 
-# Squad Render Loop
+# Squad Tokens Rendering
 for unit, icon in tokens.items():
-    # Get the ID (e.g., 'insertion_point')
-    loc_id = st.session_state.locations.get(unit, "insertion_point")
+    current_loc = st.session_state.locations.get(unit, "South Quay")
     
-    # Find the POI by ID first, then fall back to name, then first available
-    poi = MISSION_DATA.get(loc_id) or \
-          next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_id.lower()), 
-          list(MISSION_DATA.values())[0])
+    # ROBUST MATCHING: Looks for POI by name (case-insensitive) 
+    # Falls back to South Quay if matching fails
+    target_poi = next(
+        (info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), 
+        MISSION_DATA.get('south_quay', list(MISSION_DATA.values())[0])
+    )
     
-    # Now the team will have a real lat/long to stand on
-    coords = [poi["coords"][0] + offsets[unit][0], poi["coords"][1] + offsets[unit][1]]
-    folium.Marker(coords, icon=icon, tooltip=unit).add_to(m)
+    # Apply offsets so they don't stack
+    final_coords = [
+        target_poi["coords"][0] + offsets[unit][0], 
+        target_poi["coords"][1] + offsets[unit][1]
+    ]
     
-    # Render Bubble only if dialogue exists in current_comms
+    folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
+
+    # Render Dialogue Bubbles if they exist
     if unit in current_comms:
-        b_pos = [coords[0] + b_offsets[unit][0], coords[1] + b_offsets[unit][1]]
-        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:9pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
+        b_pos = [final_coords[0] + b_offsets[unit][0], final_coords[1] + b_offsets[unit][1]]
+        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
 # 🗺️ HERO MAP
