@@ -252,21 +252,13 @@ with col_left:
         get_dm_response(prompt)
         st.rerun()
 
-    with st.container(height=280, border=True):
-         for msg in reversed(st.session_state.messages):
-             if msg["role"] == "user": st.markdown(f"**> CMD:** `{msg['content']}`")
-             elif "content" in msg and isinstance(msg["content"], dict):
-                 for op, text in msg["content"].items(): st.markdown(f"**{op}:** {text}")
+
 
 with col_right:
     m1, m2 = st.columns(2)
     m1.metric("TIME", f"{st.session_state.mission_time}m")
     m2.metric("VIS", f"{st.session_state.viability}%")
-    st.progress(st.session_state.viability / 100)
-    
-    with st.expander("🎯 OBJECTIVES", expanded=True):
-        for obj_id, status in st.session_state.objectives.items():
-            st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")
+ 
     
     # ABORT BUTTON (At the very bottom of the dashboard)
     if st.button("🚨 ABORT MISSION"):

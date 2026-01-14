@@ -87,3 +87,16 @@ def get_dm_response(prompt):
     """
     
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
+
+    ///chat log display code 
+        with st.container(height=280, border=True):
+         for msg in reversed(st.session_state.messages):
+             if msg["role"] == "user": st.markdown(f"**> CMD:** `{msg['content']}`")
+             elif "content" in msg and isinstance(msg["content"], dict):
+                 for op, text in msg["content"].items(): st.markdown(f"**{op}:** {text}")
+
+    ///objcetives list 
+    
+    with st.expander("🎯 OBJECTIVES", expanded=True):
+        for obj_id, status in st.session_state.objectives.items():
+            st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")             
