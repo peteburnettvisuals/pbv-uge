@@ -1,5 +1,6 @@
 <mission id="cristobal_01">
     <intent>
+        <mission_designator>Operation Clearwater</mission_designator>
         <theater>Puerto de Cristobal, Colon, Panama</theater>
         <situation>A local cartel has managed to source anti-aircraft weapons which are being delivered to the port of Cristobal via the cargo ship MV Panamax. These weapons represent an unacceptable threat to the local authorities.</situation>
         <mission>PMC Gundogs have been tasked with the interception of these munitions at the port, and their delivery into Agency hands.</mission>
@@ -101,13 +102,13 @@
             <intel>Chain-link boundary and primary vehicle gate.</intel>
             <aliases>north gate, main gate, north fence, vehicle gate</aliases>
         </poi>
-        <poi id="south_quay">
-            <name>South Quay</name>
+        <poi id="insertion_point">
+            <name>Insertion Point</name>
             <lat>9.350765</lat>
             <lon>-79.905095</lon>
             <image>loc_perimeter.jpg</image>
             <intel>Initial insertion point for the squad.</intel>
-            <aliases>south dock, insertion point, start point, south fence, LZ</aliases>
+            <aliases>south dock, insertion point, start point, IP, LZ</aliases>
         </poi>
         <poi id="container_stacks">
             <name>Container Stacks</name>

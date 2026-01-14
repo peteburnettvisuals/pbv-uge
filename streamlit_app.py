@@ -56,7 +56,7 @@ if "viability" not in st.session_state:
         "messages": [],
         "chat_session": None,
         "efficiency_score": 1000,
-        "locations": {"SAM": "South Quay", "DAVE": "South Quay", "MIKE": "South Quay"},
+        "locations": {"SAM": "Insertion Point", "DAVE": "Insertion Point", "MIKE": "Insertion Point"},
         "idle_turns": {"SAM": 0, "DAVE": 0, "MIKE": 0},
     })
 
@@ -82,6 +82,15 @@ def get_image_url(filename):
         blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
         return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
     except: return ""
+
+def parse_operative_dialogue(text):
+    """Splits the raw AI response into a dictionary by operative name."""
+    # This matches SAM: [text], DAVE: [text], etc.
+    pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
+    segments = re.findall(pattern, text, re.DOTALL)
+    
+    # Return a dict: {'SAM': 'message', 'DAVE': '...', 'MIKE': '...'}
+    return {name: msg.strip() for name, msg in segments}
 
 # --- AI ENGINE LOGIC (Architect / C2 Style) ---
 def get_dm_response(prompt):
@@ -224,8 +233,19 @@ def get_dm_response(prompt):
         st.session_state.time_elapsed = start_time - time_remaining
         st.session_state.mission_complete = True        
 
-    # D. Clean the Response for UI
+    # D. Clean and Parse
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
+
+    # Create the split dictionary for the UI and Map Bubbles
+    split_dialogue = parse_operative_dialogue(clean_response)
+
+    # Store the split dict instead of just the string
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": split_dialogue,
+        "raw_text": clean_response # Keep raw text just in case
+    })
+
     return clean_response
 
 
@@ -237,7 +257,7 @@ with st.sidebar:
     # Dual-Metric HUD
     st.progress(st.session_state.viability / 100, text=f"PLAUSIBLE DENIABILITY: {st.session_state.viability}%")
     
-    st.metric(label="MISSION CLOCK", value=f"{st.session_state.mission_time} MIN")
+    st.metric(label="MISSION TIME REMAINING", value=f"{st.session_state.mission_time} MIN")
     
     # Fixed Abort Logic
     if st.button("🚨 ABORT MISSION (RESET)"):
@@ -279,13 +299,12 @@ with st.sidebar:
 if st.session_state.get("mission_complete", False):
     # --- MISSION SUCCESS UI ---
     st.balloons()
-    st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE!</h1>", unsafe_allow_html=True)
     
     col_a, col_b, col_c = st.columns([1, 2, 1])
     with col_b:
         # Success banner placeholder
-        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/success-banner.png") 
-        st.metric("TOTAL EXTRACTION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
+        st.metric("TOTAL MISSION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
         st.metric("VIABILITY REMAINING", f"{st.session_state.viability}%")
         
         score = (st.session_state.viability * 10) - (st.session_state.get('time_elapsed', 0) * 5)
@@ -302,15 +321,27 @@ else:
         st.markdown("### 📡 COMMS FEED")
         chat_container = st.container(height=650, border=True)
         with chat_container:
-            if not st.session_state.messages:
-                with st.spinner("Establishing Multiplex Link..."):
-                    # Initial SITREP request
-                    init_response = get_dm_response("Commander on deck. All units at South Quay. Give SITREPs.")
-                    st.session_state.messages.append({"role": "assistant", "content": init_response})
-
             for msg in st.session_state.messages:
-                with st.chat_message(msg["role"]):
-                    st.write(msg["content"])
+                if msg["role"] == "user":
+                    with st.chat_message("user"):
+                        st.write(msg["content"])
+                else:
+                    # It's the Assistant (The Squad)
+                    dialogue_dict = msg["content"]
+                    
+                    # If it's the dictionary format, render separate bubbles
+                    if isinstance(dialogue_dict, dict):
+                        for operative, text in dialogue_dict.items():
+                            # Map to your local images
+                            avatar_img = f"{operative.lower()}.png" 
+                            
+                            with st.chat_message(operative.lower(), avatar=avatar_img):
+                                st.markdown(f"**{operative}**")
+                                st.write(text)
+                    else:
+                        # Fallback for old string messages or Recon reports
+                        with st.chat_message("assistant"):
+                            st.write(msg["content"])
 
     with col2:
         st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
@@ -342,7 +373,7 @@ else:
         offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
 
         for unit, icon in tokens.items():
-            current_loc = st.session_state.locations.get(unit, "South Quay")
+            current_loc = st.session_state.locations.get(unit, "Insertion Point")
             # Robust matching POI by name
             target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('south_quay'))
             
