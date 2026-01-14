@@ -77,6 +77,15 @@ def get_image_url(filename):
         return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
     except: return ""
 
+The reason the team is silent is that the Startup Trigger logic at the bottom of the script is currently stuck. It checks for st.session_state.messages, but since the get_dm_response function adds a "user" message before the "assistant" response, the logic thinks the session has started and stops triggering the initial report.
+
+Additionally, we need to ensure the Map Bubble rendering logic is looking at the correct data structure.
+
+🛠️ The Fix: Full Code Reconciliation
+Replace your current script from parse_operative_dialogue onwards with this stabilized version. It includes a more robust startup trigger and ensures the map bubbles have the data they need.
+
+Python
+
 def parse_operative_dialogue(text):
     pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
     segments = re.findall(pattern, text, re.DOTALL)
@@ -87,7 +96,7 @@ def parse_operative_dialogue(text):
     return cleaned_dict
 
 # --- AI ENGINE LOGIC ---
-def get_dm_response(prompt):
+def get_dm_response(prompt, is_system=False):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.3})
 
@@ -113,7 +122,7 @@ def get_dm_response(prompt):
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     split_dialogue = parse_operative_dialogue(clean_response)
 
-    # CRITICAL: Append dict for map and raw text for log
+    # Save to history
     st.session_state.messages.append({
         "role": "assistant", 
         "content": split_dialogue,
@@ -123,7 +132,7 @@ def get_dm_response(prompt):
 
 # --- UI LAYOUT ---
 
-# Define Map Assets upfront to prevent definition errors
+# Assets Defined Top-Level
 sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
 dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
 mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
@@ -131,7 +140,6 @@ tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
 offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
 b_offsets = {"SAM": [0.0007, 0.0004], "DAVE": [-0.0003, 0.0006], "MIKE": [0.0007, -0.0004]}
 
-# CSS to tighten layout
 st.markdown("""
     <style>
         .block-container {padding-top: 1rem;}
@@ -143,15 +151,14 @@ st.markdown("""
 # 1. TOP ROW: TACTICAL HUD
 m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
 
-# Render POIs
 for loc_id, info in MISSION_DATA.items():
     is_discovered = loc_id in st.session_state.discovered_locations
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#444"};">{info["name"].upper()}</div>')).add_to(m)
 
-# SQUAD BUBBLE LOGIC
-latest_entry = st.session_state.messages[-1] if st.session_state.messages else None
-current_comms = latest_entry["content"] if (latest_entry and isinstance(latest_entry["content"], dict)) else {}
+# BUBBLE LOGIC: Look for the most recent Assistant message
+latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "assistant"), None)
+current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant["content"], dict)) else {}
 
 for unit, icon in tokens.items():
     loc_name = st.session_state.locations.get(unit, "Insertion Point")
@@ -161,10 +168,10 @@ for unit, icon in tokens.items():
     
     if unit in current_comms:
         b_pos = [coords[0] + b_offsets[unit][0], coords[1] + b_offsets[unit][1]]
-        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:9pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
+        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
-st_folium(m, height=700, use_container_width=True, key="tactical_hud_stable")
+st_folium(m, height=700, use_container_width=True, key="tactical_hud_final")
 
 # 2. BOTTOM TIER
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
@@ -180,7 +187,7 @@ with col_left:
          for msg in reversed(st.session_state.messages):
              if msg["role"] == "user":
                  st.markdown(f"**> CMD:** `{msg['content']}`")
-             elif isinstance(msg["content"], dict):
+             elif "content" in msg and isinstance(msg["content"], dict):
                  for op, text in msg["content"].items():
                      st.markdown(f"**{op}:** {text}")
 
@@ -188,12 +195,11 @@ with col_right:
     m1, m2 = st.columns(2)
     m1.metric("TIME", f"{st.session_state.mission_time}m")
     m2.metric("VIS", f"{st.session_state.viability}%")
-    
     with st.expander("🎯 OBJECTIVES", expanded=True):
         for obj_id, status in st.session_state.objectives.items():
             st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")
 
-# Startup Trigger
-if not st.session_state.messages:
+# 3. ROBUST STARTUP TRIGGER
+if not any(msg["role"] == "assistant" for msg in st.session_state.messages):
     get_dm_response("Team is at the insertion point. Report in.")
     st.rerun()
