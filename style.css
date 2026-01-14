@@ -132,3 +132,9 @@ div.stButton > button:hover {
     background-color: #FF3333 !important; /* Flash red on hover */
     color: #000000 !important;
 }
+
+/* Add this to your style.css if you want a tail on the map bubbles */
+.leaflet-div-icon {
+    background: transparent !important;
+    border: none !important;
+}

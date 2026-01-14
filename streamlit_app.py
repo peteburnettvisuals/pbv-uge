@@ -377,17 +377,57 @@ else:
             folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
             folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
 
-        # Squad Tokens
+        # --- SQUAD TOKENS & SPEECH BUBBLES ---
         tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
         offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
 
+        # Pull the latest structured dialogue from session state
+        latest_entry = st.session_state.messages[-1] if st.session_state.messages else None
+        current_comms = latest_entry["content"] if (latest_entry and isinstance(latest_entry["content"], dict)) else {}
+
         for unit, icon in tokens.items():
             current_loc = st.session_state.locations.get(unit, "Insertion Point")
-            # Robust matching POI by name
             target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('south_quay'))
             
             final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
-            folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
+            
+            # 1. Place the Operative Icon
+            folium.Marker(final_coords, icon=icon, tooltip=f"Unit: {unit}").add_to(m)
+
+            # 2. Render the Speech Bubble if they have a message
+            if unit in current_comms:
+                msg_text = current_comms[unit]
+                # Shorten for the map bubble so it stays 'tactical'
+                short_text = (msg_text[:75] + '...') if len(msg_text) > 75 else msg_text
+                
+                bubble_html = f"""
+                <div style="
+                    background: rgba(10, 25, 10, 0.85); 
+                    border: 1.5px solid #00FF00; 
+                    color: #00FF00; 
+                    padding: 6px; 
+                    border-radius: 8px 8px 8px 0px; 
+                    font-size: 8.5pt; 
+                    width: 140px; 
+                    font-family: 'Courier New', monospace;
+                    box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
+                    line-height: 1.2;
+                ">
+                    <strong style="color: #fff;">{unit}:</strong> {short_text}
+                </div>
+                """
+                
+                # Position the bubble slightly above and to the right of the icon
+                bubble_pos = [final_coords[0] + 0.0004, final_coords[1] + 0.0002]
+                
+                folium.Marker(
+                    location=bubble_pos,
+                    icon=folium.DivIcon(
+                        icon_size=(150,36),
+                        icon_anchor=(0,0),
+                        html=bubble_html
+                    )
+                ).add_to(m)
         
         st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
 
