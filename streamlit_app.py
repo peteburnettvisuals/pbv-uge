@@ -6,19 +6,17 @@ import datetime
 import folium
 from streamlit_folium import st_folium
 
-# --- CONFIGURATION & INITIALIZATION ---
+# --- 1. CONFIGURATION & ENGINE ---
 st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal HUD", initial_sidebar_state="collapsed")
 
 def local_css(file_name):
     try:
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-    except:
-        pass
+    except: pass
 
 local_css("style.css")
 
-# 1. ENGINE UTILITIES
 def load_mission(file_path):
     try:
         tree = ET.parse(file_path)
@@ -39,43 +37,16 @@ def load_mission(file_path):
 
 MISSION_DATA = load_mission('mission_data.xml')
 
-def get_initial_objectives(file_path):
-    tree = ET.parse(file_path)
-    return {t.get('id'): (t.get('status').lower() == 'true') for t in tree.findall('.//task')}
-
 if "objectives" not in st.session_state:
-    st.session_state.objectives = get_initial_objectives('mission_data.xml')
+    tree = ET.parse('mission_data.xml')
+    st.session_state.objectives = {t.get('id'): (t.get('status').lower() == 'true') for t in tree.findall('.//task')}
 
 if "viability" not in st.session_state:
     st.session_state.update({
-        "viability": 100,
-        "mission_time": 60,
-        "messages": [],
-        "chat_session": None,
-        "efficiency_score": 1000,
+        "viability": 100, "mission_time": 60, "messages": [], "chat_session": None,
         "locations": {"SAM": "Insertion Point", "DAVE": "Insertion Point", "MIKE": "Insertion Point"},
         "discovered_locations": [],
     })
-
-# --- UTILITY FUNCTIONS ---
-BUCKET_NAME = "uge-repository-cu32"
-
-@st.cache_resource
-def get_gcs_client():
-    from google.oauth2 import service_account
-    from google.cloud import storage
-    creds_info = st.secrets["gcp_service_account"]
-    credentials = service_account.Credentials.from_service_account_info(creds_info)
-    return storage.Client(credentials=credentials, project=creds_info["project_id"])
-
-@st.cache_data(ttl=3600)
-def get_image_url(filename):
-    if not filename: return ""
-    try:
-        client = get_gcs_client()
-        blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
-        return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
-    except: return ""
 
 def parse_operative_dialogue(text):
     pattern = r"(SAM|DAVE|MIKE):\s*(.*?)(?=\s*(?:SAM|DAVE|MIKE):|$)"
@@ -86,11 +57,9 @@ def parse_operative_dialogue(text):
         cleaned_dict[name] = m
     return cleaned_dict
 
-# --- AI ENGINE LOGIC ---
 def get_dm_response(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.3})
-
     mission_tree = ET.parse("mission_data.xml")
     mission_root = mission_tree.getroot()
     intent = mission_root.find("intent")
@@ -103,62 +72,52 @@ def get_dm_response(prompt):
     enriched_prompt = f"[SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Commander Orders: {prompt}"
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # Suffix Data Parsing (Locations)
+    # Update Locations
     loc_match = re.search(r"\[LOC_DATA: (SAM=[^,]+, DAVE=[^,]+, MIKE=[^\]]+)\]", response_text)
     if loc_match:
         for pair in loc_match.group(1).split(", "):
             unit, loc = pair.split("=")
             st.session_state.locations[unit] = loc.strip()
 
-    # Discovery Logic (Turns Map Points Green)
-    for unit, loc_name in st.session_state.locations.items():
-        target_poi_id = next((pid for pid, info in MISSION_DATA.items() if info['name'].lower() == loc_name.lower()), None)
-        if target_poi_id and target_poi_id not in st.session_state.discovered_locations:
-            st.session_state.discovered_locations.append(target_poi_id)
-            st.toast(f"📡 New Intel: {loc_name}")
-
+    # Clean & Parse
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     split_dialogue = parse_operative_dialogue(clean_response)
 
-    st.session_state.messages.append({
-        "role": "assistant", 
-        "content": split_dialogue,
-        "display_text": clean_response
-    })
+    st.session_state.messages.append({"role": "assistant", "content": split_dialogue, "display_text": clean_response})
     return clean_response
 
-# --- UI LAYOUT ---
+# --- 2. LOGIC ENGINE (Crucial: Runs before UI) ---
 
-# --- 1. LOGIC ENGINE (Run this BEFORE the UI) ---
-
-# A. Startup Trigger: Force a SitRep if the squad hasn't spoken yet
+# Startup Trigger
 if not any(msg["role"] == "assistant" for msg in st.session_state.messages):
     get_dm_response("Team is at the insertion point. Give me a full SITREP.")
-    # We don't necessarily need st.rerun() here if this is at the top, 
-    # as the rest of the script will now have data to work with.
+    st.rerun()
 
-# B. Bubble Data Retrieval: Get the latest radio chatter for the map
+# Get latest radio chatter for Map Bubbles
 latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "assistant"), None)
 current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant["content"], dict)) else {}
 
-# Define Map Assets
-sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
-dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
-mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
-tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
-offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
-b_offsets = {"SAM": [0.0007, 0.0004], "DAVE": [-0.0003, 0.0006], "MIKE": [0.0007, -0.0004]}
+# --- 3. UI RENDERING ---
 
+# Tighten Layout CSS
 st.markdown("""
     <style>
-        .block-container {padding-top: 1rem;}
-        [data-testid="column"] {margin-top: -55px !important;}
+        .block-container {padding-top: 1rem; padding-bottom: 0rem;}
+        [data-testid="column"] {margin-top: -65px !important;}
         .stVerticalBlock {gap: 0rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
-# 1. TOP ROW: TACTICAL HUD
-st.markdown("### 🗺️ LIVE TACTICAL HUD")
+# Map Assets
+sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
+tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+
+# Increased Offsets to stop the "clustering" at Harbor Master
+offsets = {"SAM": [0.00035, 0], "DAVE": [-0.00025, 0.00035], "MIKE": [-0.00025, -0.00035]}
+b_offsets = {"SAM": [0.0008, 0.0002], "DAVE": [-0.0004, 0.0007], "MIKE": [0.0008, -0.0004]}
+
 m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
 
 # Render Static POIs
@@ -167,7 +126,7 @@ for loc_id, info in MISSION_DATA.items():
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#444"};">{info["name"].upper()}</div>')).add_to(m)
 
-# Now current_comms is guaranteed to have data, so the bubbles WILL show up
+# Squad Render (Icons + Radio Bubbles)
 for unit, icon in tokens.items():
     loc_name = st.session_state.locations.get(unit, "Insertion Point")
     poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
@@ -176,13 +135,13 @@ for unit, icon in tokens.items():
     
     if unit in current_comms:
         b_pos = [coords[0] + b_offsets[unit][0], coords[1] + b_offsets[unit][1]]
-        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
+        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1.5px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:9pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
-# --- STEP 4: RENDER THE MAP ---
-st_folium(m, height=650, use_container_width=True, key="tactical_hud_final")
+# 🗺️ TOP TIER: HERO MAP (800px)
+st_folium(m, height=800, use_container_width=True, key="tactical_hud_final")
 
-# 2. BOTTOM TIER
+# 🖥️ BOTTOM TIER: CONTROLS
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
 
 with col_left:
@@ -192,22 +151,17 @@ with col_left:
         get_dm_response(prompt)
         st.rerun()
 
-    with st.container(height=300, border=True):
+    with st.container(height=250, border=True):
          for msg in reversed(st.session_state.messages):
-             if msg["role"] == "user":
-                 st.markdown(f"**> CMD:** `{msg['content']}`")
+             if msg["role"] == "user": st.markdown(f"**> CMD:** `{msg['content']}`")
              elif "content" in msg and isinstance(msg["content"], dict):
-                 for op, text in msg["content"].items():
-                     st.markdown(f"**{op}:** {text}")
+                 for op, text in msg["content"].items(): st.markdown(f"**{op}:** {text}")
 
 with col_right:
-    m_top1, m_top2 = st.columns(2)
-    m_top1.metric("TIME", f"{st.session_state.mission_time}m")
-    m_top2.metric("VIS", f"{st.session_state.viability}%")
-    
+    m1, m2 = st.columns(2)
+    m1.metric("TIME", f"{st.session_state.mission_time}m")
+    m2.metric("VIS", f"{st.session_state.viability}%")
     st.progress(st.session_state.viability / 100)
-    
     with st.expander("🎯 OBJECTIVES", expanded=True):
         for obj_id, status in st.session_state.objectives.items():
             st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")
-
