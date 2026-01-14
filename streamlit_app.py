@@ -387,5 +387,4 @@ else:
         st.session_state.mission_time -= 1 
         st.session_state.messages.append({"role": "user", "content": prompt})
         response = get_dm_response(prompt)
-        st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
