@@ -215,29 +215,42 @@ for loc_id, info in MISSION_DATA.items():
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#999"};">{info["name"].upper()}</div>')).add_to(m)
 
 # Squad Tokens Rendering
+# Updated Squad Loop with 'Pinned' Bubbles
 for unit, icon in tokens.items():
-    current_loc = st.session_state.locations.get(unit, "South Quay")
+    loc_name = st.session_state.locations.get(unit, "insertion_point")
+    poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
     
-    # ROBUST MATCHING: Looks for POI by name (case-insensitive) 
-    # Falls back to South Quay if matching fails
-    target_poi = next(
-        (info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), 
-        MISSION_DATA.get('south_quay', list(MISSION_DATA.values())[0])
-    )
+    # Character Anchor
+    coords = [poi["coords"][0] + offsets[unit][0], poi["coords"][1] + offsets[unit][1]]
+    folium.Marker(coords, icon=icon).add_to(m)
     
-    # Apply offsets so they don't stack
-    final_coords = [
-        target_poi["coords"][0] + offsets[unit][0], 
-        target_poi["coords"][1] + offsets[unit][1]
-    ]
-    
-    folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
-
-    # Render Dialogue Bubbles if they exist
     if unit in current_comms:
-        b_pos = [final_coords[0] + b_offsets[unit][0], final_coords[1] + b_offsets[unit][1]]
-        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace;"><b>{unit}</b><br>{current_comms[unit]}</div>'
-        folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
+        # We pin the bubble to the EXACT same spot, but use a CSS 'offset' to push it up
+        bubble_html = f"""
+        <div style="
+            position: relative;
+            bottom: 60px; 
+            left: 20px;
+            background: rgba(0, 20, 0, 0.9); 
+            border: 2px solid #0f0; 
+            color: #0f0; 
+            padding: 10px; 
+            border-radius: 4px; 
+            width: 250px; 
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+            line-height: 1.2;
+            box-shadow: 0px 0px 15px #0f0;
+            z-index: 1000;
+        ">
+            <strong style="text-transform: uppercase; border-bottom: 1px solid #0f0;">{unit}</strong><br>
+            {current_comms[unit]}
+        </div>
+        """
+        folium.Marker(
+            coords, 
+            icon=folium.DivIcon(icon_size=(0,0), html=bubble_html)
+        ).add_to(m)
 
 # 🗺️ HERO MAP
 st_folium(m, height=700, use_container_width=True, key="tactical_hud_final")
