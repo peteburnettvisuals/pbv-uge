@@ -118,33 +118,36 @@ def get_dm_response(prompt):
             st.session_state.discovered_locations.append(target_poi_id)
             st.toast(f"📡 New Intel: {loc_name}")
 
+    # Inside get_dm_response:
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
-    st.session_state.messages.append({"role": "assistant", "content": parse_operative_dialogue(clean_response)})
+    split_dialogue = parse_operative_dialogue(clean_response)
+
+    # THIS IS THE CRITICAL LINE FOR MAP BUBBLES:
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": split_dialogue  # Must be the dictionary
+    })
     return clean_response
 
 # --- UI LAYOUT ---
 
 # 1. TOP ROW: TACTICAL HUD
 
-
+# CSS to tighten the 'fold' and pull the dashboard up
 st.markdown("""
     <style>
-        .block-container {padding-top: 1rem; padding-bottom: 0rem;}
-        .stVerticalBlock {gap: 0.3rem !important;}
-        [data-testid="stMetric"] {background: rgba(0,255,0,0.05); padding: 5px; border-radius: 5px;}
-        footer {visibility: hidden;}
-        /* Pull the bottom tier up to meet the map */
-        [data-testid="column"] {
-            margin-top: -45px !important;
-        }
-        /* Optional: If the chat input still feels too far down */
-        .stChatInput {
-            padding-bottom: 0px !important;
-        }
+        .block-container {padding-top: 1rem;}
+        [data-testid="column"] {margin-top: -50px !important;}
+        .stVerticalBlock {gap: 0rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
-# Define Map and Assets
+# Define Map Assets (Must be before Map Render)
+sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
+tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+
 m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
 
 # Markers & Discovery
@@ -161,35 +164,48 @@ tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
 offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
 b_offsets = {"SAM": [0.0007, 0.0004], "DAVE": [-0.0003, 0.0006], "MIKE": [0.0007, -0.0004]}
 
-latest_msg = st.session_state.messages[-1] if st.session_state.messages else None
-current_comms = latest_msg["content"] if (latest_msg and isinstance(latest_msg["content"], dict)) else {}
+# SQUAD BUBBLE LOGIC
+# We look at the very last message in history to see if it's a squad dictionary
+latest_entry = st.session_state.messages[-1] if st.session_state.messages else None
+current_comms = latest_entry["content"] if (latest_entry and isinstance(latest_entry["content"], dict)) else {}
 
 for unit, icon in tokens.items():
     loc_name = st.session_state.locations.get(unit, "Insertion Point")
     poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == loc_name.lower()), list(MISSION_DATA.values())[0])
+    
+    # Coordinates with small offsets to prevent stacking icons
     coords = [poi["coords"][0] + offsets[unit][0], poi["coords"][1] + offsets[unit][1]]
     folium.Marker(coords, icon=icon, tooltip=unit).add_to(m)
     
+    # RENDER BUBBLE
     if unit in current_comms:
         b_pos = [coords[0] + b_offsets[unit][0], coords[1] + b_offsets[unit][1]]
-        bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:6px; border-radius:5px; font-size:8.5pt; width:160px; font-family:monospace; box-shadow:2px 2px 5px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
-        folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(180,100), html=bubble_html)).add_to(m)
+        bubble_html = f"""
+        <div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:9pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;">
+            <b style="color:white;border-bottom:1px solid #0f0;display:block;margin-bottom:3px;">{unit}</b>
+            {current_comms[unit]}
+        </div>
+        """
+        folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
-st_folium(m, height=650, use_container_width=True, key="map_v8")
+# MAP HEIGHT INCREASED TO 700
+st_folium(m, height=700, use_container_width=True, key="tactical_hud_v9")
 
 # 2. BOTTOM TIER: 2-COLUMN CONTROL DECK
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
 
 with col_left:
-    # INPUT BAR LOCKED ABOVE LOG
+    # 1. INPUT (Now properly nested in the left column)
     if prompt := st.chat_input("TRANSMIT COMMANDS..."):
         st.session_state.mission_time -= 1 
         st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # Trigger the AI - ensure get_dm_response handles the parse/append
         get_dm_response(prompt)
         st.rerun()
 
-    
-    with st.container(height=280, border=True):
+    # 2. SYSTEM LOG (Reversed to show newest first)
+    with st.container(height=300, border=True):
          for msg in reversed(st.session_state.messages):
              if msg["role"] == "user":
                  st.markdown(f"**> CMD:** `{msg['content']}`")
