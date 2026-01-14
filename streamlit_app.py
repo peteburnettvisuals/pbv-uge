@@ -133,6 +133,14 @@ st.markdown("""
         .stVerticalBlock {gap: 0.3rem !important;}
         [data-testid="stMetric"] {background: rgba(0,255,0,0.05); padding: 5px; border-radius: 5px;}
         footer {visibility: hidden;}
+        /* Pull the bottom tier up to meet the map */
+        [data-testid="column"] {
+            margin-top: -45px !important;
+        }
+        /* Optional: If the chat input still feels too far down */
+        .stChatInput {
+            padding-bottom: 0px !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -167,7 +175,7 @@ for unit, icon in tokens.items():
         bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:6px; border-radius:5px; font-size:8.5pt; width:160px; font-family:monospace; box-shadow:2px 2px 5px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(180,100), html=bubble_html)).add_to(m)
 
-st_folium(m, height=450, use_container_width=True, key="map_v8")
+st_folium(m, height=650, use_container_width=True, key="map_v8")
 
 # 2. BOTTOM TIER: 2-COLUMN CONTROL DECK
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
