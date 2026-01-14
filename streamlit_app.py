@@ -87,7 +87,7 @@ def parse_operative_dialogue(text):
     return cleaned_dict
 
 # --- AI ENGINE LOGIC ---
-def get_dm_response(prompt, is_system=False):
+def get_dm_response(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"temperature": 0.3})
 
@@ -103,17 +103,23 @@ def get_dm_response(prompt, is_system=False):
     enriched_prompt = f"[SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Commander Orders: {prompt}"
     response_text = st.session_state.chat_session.send_message(enriched_prompt).text
 
-    # Suffix Data Parsing
+    # Suffix Data Parsing (Locations)
     loc_match = re.search(r"\[LOC_DATA: (SAM=[^,]+, DAVE=[^,]+, MIKE=[^\]]+)\]", response_text)
     if loc_match:
         for pair in loc_match.group(1).split(", "):
             unit, loc = pair.split("=")
             st.session_state.locations[unit] = loc.strip()
 
+    # Discovery Logic (Turns Map Points Green)
+    for unit, loc_name in st.session_state.locations.items():
+        target_poi_id = next((pid for pid, info in MISSION_DATA.items() if info['name'].lower() == loc_name.lower()), None)
+        if target_poi_id and target_poi_id not in st.session_state.discovered_locations:
+            st.session_state.discovered_locations.append(target_poi_id)
+            st.toast(f"📡 New Intel: {loc_name}")
+
     clean_response = re.sub(r"\[(LOC_DATA|OBJ_DATA):.*?\]", "", response_text).strip()
     split_dialogue = parse_operative_dialogue(clean_response)
 
-    # Save to history
     st.session_state.messages.append({
         "role": "assistant", 
         "content": split_dialogue,
@@ -123,7 +129,7 @@ def get_dm_response(prompt, is_system=False):
 
 # --- UI LAYOUT ---
 
-# Assets Defined Top-Level
+# Define Map Assets
 sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
 dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
 mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
@@ -134,20 +140,22 @@ b_offsets = {"SAM": [0.0007, 0.0004], "DAVE": [-0.0003, 0.0006], "MIKE": [0.0007
 st.markdown("""
     <style>
         .block-container {padding-top: 1rem;}
-        [data-testid="column"] {margin-top: -50px !important;}
+        [data-testid="column"] {margin-top: -55px !important;}
         .stVerticalBlock {gap: 0rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
 # 1. TOP ROW: TACTICAL HUD
+st.markdown("### 🗺️ LIVE TACTICAL HUD")
 m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
 
+# Render Static POIs
 for loc_id, info in MISSION_DATA.items():
     is_discovered = loc_id in st.session_state.discovered_locations
     folium.Circle(location=info["coords"], radius=40, color="#0f0", fill=True, fill_opacity=0.2 if is_discovered else 0.02).add_to(m)
     folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{"#0f0" if is_discovered else "#444"};">{info["name"].upper()}</div>')).add_to(m)
 
-# BUBBLE LOGIC: Look for the most recent Assistant message
+# BUBBLE LOGIC: Finding the last assistant radio chatter
 latest_assistant = next((msg for msg in reversed(st.session_state.messages) if msg["role"] == "assistant"), None)
 current_comms = latest_assistant["content"] if (latest_assistant and isinstance(latest_assistant["content"], dict)) else {}
 
@@ -162,7 +170,7 @@ for unit, icon in tokens.items():
         bubble_html = f'<div style="background:rgba(0,0,0,0.85); border:1px solid #0f0; color:#0f0; padding:8px; border-radius:5px; font-size:8.5pt; width:180px; font-family:monospace; box-shadow:2px 2px 10px #000;"><b>{unit}</b><br>{current_comms[unit]}</div>'
         folium.Marker(b_pos, icon=folium.DivIcon(icon_size=(200,120), html=bubble_html)).add_to(m)
 
-st_folium(m, height=700, use_container_width=True, key="tactical_hud_final")
+st_folium(m, height=700, use_container_width=True, key="tactical_hud_stable")
 
 # 2. BOTTOM TIER
 col_left, col_right = st.columns([0.65, 0.35], gap="small")
@@ -183,14 +191,17 @@ with col_left:
                      st.markdown(f"**{op}:** {text}")
 
 with col_right:
-    m1, m2 = st.columns(2)
-    m1.metric("TIME", f"{st.session_state.mission_time}m")
-    m2.metric("VIS", f"{st.session_state.viability}%")
+    m_top1, m_top2 = st.columns(2)
+    m_top1.metric("TIME", f"{st.session_state.mission_time}m")
+    m_top2.metric("VIS", f"{st.session_state.viability}%")
+    
+    st.progress(st.session_state.viability / 100)
+    
     with st.expander("🎯 OBJECTIVES", expanded=True):
         for obj_id, status in st.session_state.objectives.items():
             st.caption(f"{'✅' if status else '◽'} {obj_id.replace('obj_', '').title()}")
 
-# 3. ROBUST STARTUP TRIGGER
+# STARTUP TRIGGER: Ensure SITREP fires if squad is silent
 if not any(msg["role"] == "assistant" for msg in st.session_state.messages):
-    get_dm_response("Team is at the insertion point. Report in.")
+    get_dm_response("Team is at the insertion point. Give me a full SITREP.")
     st.rerun()
