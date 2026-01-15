@@ -345,7 +345,10 @@ else:
                     if isinstance(dialogue_dict, dict):
                         for operative, text in dialogue_dict.items():
                             # Map to your local images
-                            avatar_img = f"{operative.lower()}.png" 
+                            if operative == "AGENCY HQ":
+                                avatar_img = "agency_icon.png" # Create this file or rename an existing one
+                            else:
+                                avatar_img = f"{operative.lower()}_icon.png"
                             
                             with st.chat_message(operative.lower(), avatar=avatar_img):
                                 st.markdown(f"**{operative}**")
