@@ -401,12 +401,15 @@ else:
 if not st.session_state.messages:
     # 1. Prepare the Agency Briefing
     briefing_text = """
-    **TOP SECRET // EYES ONLY**
-    **SITUATION:** Operation Cristobal is greenlit. Assets are on-site at the insertion point.
-    **OBJECTIVE:** Infiltrate the harbor, identify the cargo container, and secure transport.
-    **CONSTRAINTS:** Maintain 100% plausible deniability. Avoid local law enforcement.
+    **TOP SECRET // EYES ONLY**\n
+    **FROM:** The Agency\n
+    **TO:** PMC Gundogs\n
+    **SITUATION:** Cartel have managed to acquire anti-aircraft weapons. Munitions arriving Puerto de Cristobal, Panama 0500 LOCAL TIME on board bulk carrier MV Panamax. Represents serious threat to military and civilian aviation. Intercept of these munitions ESSENTIAL.\n
+    **OBJECTIVE:** Infiltrate the harbor, identify the cargo container, and secure munitions for transport. Once extracted from port, had over munitions to Agency personnel in town plaza, Colon. Cartel pickup scheduled for 0600, giving 1 hour window for mission execution.\n
+    **ADVISORIES:** Container ID unknown, but records available on ship manifest file.\n
+    **CONSTRAINTS:** Maintain 100% plausible deniability. Avoid local law enforcement. Munitions cannot be destroyed as site, due to high risk of collateral damage. \n\n
     
-    *Awaiting Commander confirmation...*
+    *Awaiting PMC Gundogs Team Commander Confirmation...*
     """
     # 2. Add it to the feed as the 'AGENCY'
     st.session_state.messages.append({
