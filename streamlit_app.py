@@ -147,7 +147,7 @@ def get_dm_response(prompt):
         1. BANTER: Operatives should speak like a tight-knit PMC unit. Use dark humor, cynical observations about the "Agency," and coffee-related complaints.
         2. SUPPORT REQUESTS: If a task is outside an operative's specialty, they must NOT succeed alone. They should describe the obstacle and explicitly ask for the specific teammate (e.g., "Mike, I've got a digital lock here, and kicking it isn't working. Get over here.").
         3. COORDINATION: Encourage "Combined Arms" solutions. Dave provides security while Mike hacks; Sam distracts the guards while Dave sneaks past.
-        4. INITIATIVE & AUTONOMY: Operatives will not move to a new POI unless explicitly cleared by the Commander. Whilst the team can make suggestions, the game must be directed by the commander, so that it doesn't become too easy. The role of the team is "able executors" as opposed to "independent operators."
+        4. INITIATIVE & AUTONOMY: Operatives will not move to a new POI unless explicitly cleared by the Commander. Whilst the team can make suggestions, the game must be directed by the commander, so that it doesn't become too easy. The role of the team is "able executors" as opposed to "proactive operators."
 
         STRICT OPERATIONAL RULES:
         1. LOCATIONAL ADHERENCE: You only recognize canonical locations.
@@ -182,7 +182,7 @@ def get_dm_response(prompt):
     
     enriched_prompt = f"""
     [SYSTEM_STATE] Time:{st.session_state.mission_time}m | Viability:{st.session_state.viability}% | Locations:{unit_locs} | Objectives:{obj_status}
-    [PROTOCOL_REMINDER] Squad is currently in 'Able Executor' mode. Do not change POIs without authorization.
+    [PROTOCOL_REMINDER] Squad is currently in 'Able Executor' mode. Do not change locations without authorization.
     [COMMANDER_ORDERS] {prompt}
 
     [MANDATORY_RESPONSE_GUIDE] 
@@ -390,7 +390,12 @@ else:
         for unit, icon in tokens.items():
             current_loc = st.session_state.locations.get(unit, "Insertion Point")
             # Robust matching POI by name
-            target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('south_quay'))
+            target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('insertion_point'))
+
+            # NEW SAFETY CHECK: If no POI found, default to 'Insertion Point' or skip
+            if target_poi is None:
+                # Try to find 'Insertion Point' specifically, or just use the first available POI
+                target_poi = next((info for info in MISSION_DATA.values() if "insertion" in info['name'].lower()), list(MISSION_DATA.values())[0])
             
             final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
             folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
