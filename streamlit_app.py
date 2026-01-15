@@ -48,6 +48,9 @@ def get_initial_objectives(file_path):
 if "objectives" not in st.session_state:
     st.session_state.objectives = get_initial_objectives('mission_data.xml')
 
+if "mission_started" not in st.session_state:
+    st.session_state.mission_started = False    
+
 # Unified Session State Initialization
 if "viability" not in st.session_state:
     st.session_state.update({
@@ -391,16 +394,38 @@ else:
         
         st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
 
-    # Check if this is a brand new session to kick off the "Auto SITREP"
-    if not st.session_state.messages:
-        # Use a placeholder to prevent infinite loops, then call the DM
-        with st.spinner("Establishing Satellite Uplink..."):
+    # --- MISSION STAGING & INITIAL BRIEFING ---
+if not st.session_state.messages:
+    # 1. Prepare the Agency Briefing
+    briefing_text = """
+    **TOP SECRET // EYES ONLY**
+    **SITUATION:** Operation Cristobal is greenlit. Assets are on-site at the insertion point.
+    **OBJECTIVE:** Infiltrate the harbor, identify the cargo container, and secure transport.
+    **CONSTRAINTS:** Maintain 100% plausible deniability. Avoid local law enforcement.
+    
+    *Awaiting Commander confirmation...*
+    """
+    # 2. Add it to the feed as the 'AGENCY'
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": {"AGENCY HQ": briefing_text}
+    })
+    st.rerun()
+
+# --- THE START BUTTON LOGIC ---
+if not st.session_state.mission_started:
+    # This button appears in the main area until clicked
+    if st.button("🚀 INITIALIZE OPERATION: CONFIRM MISSION PARAMETERS", use_container_width=True):
+        with st.spinner("COMMUNICATION SECURED. SQUAD REPORTING IN..."):
+            # Trigger the actual AI squad check-in
             response = get_dm_response("Team is at the insertion point. Report in.")
+            st.session_state.mission_started = True
             st.rerun()
     
-    # Chat Input outside columns but inside the 'else'
+# Only show the input if the mission is active
+if st.session_state.mission_started:
     if prompt := st.chat_input("Issue Commands..."):
         st.session_state.mission_time -= 1 
         st.session_state.messages.append({"role": "user", "content": prompt})
-        response = get_dm_response(prompt)
+        get_dm_response(prompt)
         st.rerun()
