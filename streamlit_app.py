@@ -5,9 +5,6 @@ import re
 import datetime
 import folium
 from streamlit_folium import st_folium
-from google.cloud import firestore
-from google.oauth2 import service_account
-import streamlit_authenticator as stauth
 
 
 def local_css(file_name):
@@ -19,49 +16,6 @@ local_css("style.css")
 # --- CONFIGURATION & INITIALIZATION ---
 st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal Mission")
 
-# 1. Load the credentials from st.secrets dictionary
-# Note: Streamlit handles the TOML section as a clean Python dictionary
-credentials_info = st.secrets["gcp_service_account_firestore"]
-credentials = service_account.Credentials.from_service_account_info(credentials_info)
-
-# 2. Initialize the Firestore client
-db = firestore.Client(credentials=credentials, project=credentials_info["project_id"])
-
-def get_user_credentials():
-    # Initialize the mandatory structure
-    creds = {"usernames": {}}
-    try:
-        users_ref = db.collection("users").stream()
-        for doc in users_ref:
-            data = doc.to_dict()
-            # Populate the dictionary using Document ID as key
-            creds["usernames"][doc.id] = {
-                "name": data.get("name", "Operative"),
-                "password": data.get("password", ""),
-                "email": data.get("email", "")
-            }
-    except Exception as e:
-        st.error(f"Firestore Connection Failed: {e}")
-    
-    # SAFETY: If still empty, add a dummy entry to prevent the TypeError
-    if not creds["usernames"]:
-        creds["usernames"]["initial_setup"] = {
-            "name": "Admin",
-            "password": "none",
-            "email": "admin@gundogs.com"
-        }
-    return creds
-    
-
-# Re-fetch and initialize
-credentials = get_user_credentials()
-
-authenticator = stauth.Authenticate(
-    credentials,
-    "gundog_cookie",
-    "gundog_secret_key",
-    cookie_expiry_days=30
-)
 
 
 # 1. ENGINE UTILITIES
@@ -306,306 +260,183 @@ def get_dm_response(prompt):
 
     return clean_response
 
-def save_mission_state(email, mission_id):
-    """Saves the current session state to Firestore."""
-    # Reference to the specific trainee's mission document
-    doc_ref = db.collection("mission_states").document(f"{username}_{mission_id}")
-    
-    # Prepare the payload from session_state
-    save_data = {
-        "username": username,
-        "mission_id": mission_id,
-        "chat_history": st.session_state.get("messages", []), # Standard chat history list
-        "unit_data": st.session_state.get("units", {}),      # Tactical unit positions
-        "objectives": st.session_state.get("objectives", {}), # Progress tracking
-        "last_saved": firestore.SERVER_TIMESTAMP
-    }
-    
-    # Perform an asynchronous merge write to minimize UI lag
-    doc_ref.set(save_data, merge=True)
-    st.toast("Tactical state synchronized to Cloud.")
 
-def load_mission_state(username, mission_id):
-    """Loads previous state from Firestore into the live app."""
-    doc_ref = db.collection("mission_states").document(f"{username}_{mission_id}")
-    doc = doc_ref.get()
-    
-    if doc.exists:
-        data = doc.to_dict()
-        # Restore chat, units, and objectives into the current session
-        st.session_state.messages = data.get("chat_history", [])
-        st.session_state.units = data.get("unit_data", {})
-        st.session_state.objectives = data.get("objectives", {})
-        return True
-    return False
 
 # --- UI LAYOUT ---
-
-# --- 1. LOGIN ATTEMPT ---
-name, authentication_status, username = authenticator.login("main")
-
-if authentication_status:
-    # --- 2. THE AUTO-RESUME GATE ---
-    # Triggered once upon successful login
-    if not st.session_state.get("auto_resume_attempted", False):
-        # We use 'username' because stauth stores the login ID (email) there
-        state_found = load_mission_state(username, "panama")
-        st.session_state["auto_resume_attempted"] = True 
-        
-        if state_found:
-            st.session_state.mission_started = True 
-            st.toast(f"Welcome back, Operative. State recovered from Cloud.")
-
-    # --- 3. TACTICAL UI (Main Engine) ---
-    st.empty() # Clear landing page
-
-    with st.sidebar:
-        st.header("🦅 GUNDOG C2")
-
-        st.sidebar.success(f"Logged in: {username}") # Fix: uses the variable from authenticator.login
-        authenticator.logout("Logout", "sidebar")
-        
-        st.metric(label="MISSION TIME REMAINING", value=f"{st.session_state.mission_time} MIN")
-        
-        # Fixed Abort Logic
-        if st.button("🚨 ABORT MISSION (RESET)"):
-            st.session_state.clear() # Clears everything to trigger a fresh boot
-            st.rerun()
-
-        # Add this to your Sidebar logic:
-        st.subheader("📝 MISSION CHECKLIST")
-        for obj_id, status in st.session_state.objectives.items():
-            label = obj_id.replace('obj_', '').replace('_', ' ').title()
-            if status:
-                st.write(f"✅ ~~{label}~~")
-            else:
-                st.write(f"◻️ {label}")
-        
-            
-
-        
-        st.subheader("👥 SQUAD DOSSIERS")
-        unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
-        
-        # Mapping to your local .png files
-        if unit_view == "DAVE":
-            st.image("dave.png", use_container_width=True) 
-            st.warning("SPECIALTY: FORCE (90) | WEAKNESS: NEG (10)")
-        elif unit_view == "SAM":
-            st.image("sam.png", use_container_width=True)
-            st.success("SPECIALTY: NEG (95) | WEAKNESS: FORCE (25)")
-        else:
-            st.image("mike.png", use_container_width=True)
-            st.info("SPECIALTY: TECH (85) | WEAKNESS: FORCE (35)")
-
-        st.divider()
-        st.subheader("📊 EFFICIENCY: " + str(st.session_state.efficiency_score))
-
-
-    # --- MAIN TERMINAL ---
-
-    if st.session_state.get("mission_complete", False):
-        st.balloons()
-        st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE: DEBRIEFING IN PROGRESS</h1>", unsafe_allow_html=True)
-        
-        # Generate the AAR automatically if it doesn't exist yet
-        if "aar_report" not in st.session_state:
-            with st.spinner("COMMANANT'S EVALUATION INCOMING..."):
-                logs = st.session_state.get("messages", [])
-                # Refined prompt for Royal Marine Commando Values
-                eval_prompt = f"""
-                Act as a Royal Marines Commandant conducting an After-Action Review (AAR). 
-                Analyze these tactical logs: {logs}.
-                1. Evaluate LEADERSHIP and MULTITASKING.
-                2. Rate the recruit on COMMANDO VALUES: Courage, Determination, Unselfishness, and Cheerfulness.
-                3. Provide one 'Sustained' (what they did well) and one 'Improve' (tactical advice).
-                """
-                st.session_state.aar_report = get_dm_response(eval_prompt)
-
-                # 2. POP THIS HERE: Save to Firestore immediately
-                doc_ref = db.collection("mission_states").document(f"{username}_panama")
-                doc_ref.set({"aar_report": st.session_state.aar_report}, merge=True)
-                st.toast("AAR permanent record created.")
-
-        # Split screen: Metrics on left, AAR on right
-        col_metrics, col_aar = st.columns([1, 2], gap="large")
-
-        with col_metrics:
-            st.subheader("📊 Mission Stats")
-            st.metric("TOTAL MISSION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
-            st.metric("VIABILITY REMAINING", f"{st.session_state.viability}%")
-            
-            score = (st.session_state.viability * 10) - (st.session_state.get('time_elapsed', 0) * 5)
-            st.subheader(f"FINAL RATING: {max(0, score)} PTS")
-            
-            st.divider()
-            if st.button("REDEPLOY (NEW MISSION)"):
-                st.session_state.clear()
-                st.rerun()
-
-        with col_aar:
-            st.subheader("📜 Commandant's Performance Evaluation")
-            st.markdown(st.session_state.aar_report)
-    else:
-        # --- ACTIVE MISSION UI ---
-        col1, col2 = st.columns([0.4, 0.6])
-
-        with col1:
-            st.markdown("### 📡 COMMS FEED")
-            chat_container = st.container(height=650, border=True)
-            with chat_container:
-                for msg in st.session_state.messages:
-                    if msg["role"] == "user":
-                        with st.chat_message("user"):
-                            st.write(msg["content"])
-                    else:
-                        # It's the Assistant (The Squad)
-                        dialogue_dict = msg["content"]
-                        
-                        # If it's the dictionary format, render separate bubbles
-                        if isinstance(dialogue_dict, dict):
-                            for operative, text in dialogue_dict.items():
-                                # Map to your local images
-                                if operative == "AGENCY HQ":
-                                    avatar_img = "agency_icon.png" # Create this file or rename an existing one
-                                else:
-                                    avatar_img = f"{operative.lower()}_icon.png"
-                                
-                                with st.chat_message(operative.lower(), avatar=avatar_img):
-                                    st.markdown(f"**{operative}**")
-                                    st.write(text)
-                        else:
-                            # Fallback for old string messages or Recon reports
-                            with st.chat_message("assistant"):
-                                st.write(msg["content"])
-
-        with col2:
-            st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
-            
-            # Define assets
-            sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
-            dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
-            mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
-            
-            m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
-            
-            # Fog of War & Discovery Render
-            for loc_id, info in MISSION_DATA.items():
-                is_discovered = loc_id in st.session_state.discovered_locations
-                marker_color = "#00FF00" 
-                fill_opac = 0.2 if is_discovered else 0.02
-                
-                if is_discovered:
-                    loc_img_url = get_image_url(info["image"])
-                    popup_html = f'<div style="width:200px;background:#000;padding:10px;border:1px solid #0f0;"><h4 style="color:#0f0;">{info["name"]}</h4><img src="{loc_img_url}" width="100%"><p style="color:#0f0;font-size:10px;">{info["intel"]}</p></div>'
-                else:
-                    popup_html = f'<div style="width:150px;background:#000;padding:10px;"><h4 style="color:#666;">{info["name"]}</h4><p style="color:#666;font-size:10px;">[RECON REQUIRED]</p></div>'
-
-                folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
-                folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
-
-            # Squad Tokens
-            tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
-            offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
-
-            for unit, icon in tokens.items():
-                current_loc = st.session_state.locations.get(unit, "Insertion Point")
-                # Robust matching POI by name
-                target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('insertion_point'))
-
-                # NEW SAFETY CHECK: If no POI found, default to 'Insertion Point' or skip
-                if target_poi is None:
-                    # Try to find 'Insertion Point' specifically, or just use the first available POI
-                    target_poi = next((info for info in MISSION_DATA.values() if "insertion" in info['name'].lower()), list(MISSION_DATA.values())[0])
-                
-                final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
-                folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
-            
-            st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
-
-        # --- MISSION STAGING & INITIAL BRIEFING ---
-    if not st.session_state.messages:
-        # 1. Prepare the Agency Briefing
-        briefing_text = """
-        **TOP SECRET // EYES ONLY**\n
-        **FROM:** The Agency\n
-        **TO:** PMC Gundogs\n
-        **SITUATION:** Cartel have managed to acquire anti-aircraft weapons. Munitions arriving Puerto de Cristobal, Panama 0500 LOCAL TIME on board bulk carrier MV Panamax. Represents serious threat to military and civilian aviation. Intercept of these munitions ESSENTIAL.\n
-        **OBJECTIVE:** Infiltrate the harbor, identify the cargo container, and secure munitions for transport. Once extracted from port, hand over munitions to Agency personnel in town plaza, Colon. Cartel pickup scheduled for 0600, giving 1 hour window for mission execution.\n
-        **ADVISORIES:** Container ID unknown, but records available on ship manifest file.\n
-        **CONSTRAINTS:** Maintain 100% plausible deniability. Avoid local law enforcement. Munitions cannot be destroyed on site, due to high risk of collateral damage. \n\n
-        
-        *Awaiting PMC Gundogs Team Commander Confirmation...*
-        """
-        # 2. Add it to the feed as the 'AGENCY'
-        st.session_state.messages.append({
-            "role": "assistant", 
-            "content": {"AGENCY HQ": briefing_text}
-        })
+with st.sidebar:
+    st.header("🦅 GUNDOG C2")
+    
+    # Dual-Metric HUD
+    st.progress(st.session_state.viability / 100, text=f"PLAUSIBLE DENIABILITY: {st.session_state.viability}%")
+    
+    st.metric(label="MISSION TIME REMAINING", value=f"{st.session_state.mission_time} MIN")
+    
+    # Fixed Abort Logic
+    if st.button("🚨 ABORT MISSION (RESET)"):
+        st.session_state.clear() # Clears everything to trigger a fresh boot
         st.rerun()
 
-    # --- THE START BUTTON LOGIC ---
-    if not st.session_state.mission_started:
-        # This button appears in the main area until clicked
-        if st.button("🚀 INITIALIZE OPERATION: CONFIRM MISSION PARAMETERS", use_container_width=True):
-            with st.spinner("COMMUNICATION SECURED. SQUAD REPORTING IN..."):
-                # Trigger the actual AI squad check-in
-                response = get_dm_response("Team is at the insertion point. Report in.")
-                st.session_state.mission_started = True
-                st.rerun()
+    # Add this to your Sidebar logic:
+    st.subheader("📝 MISSION CHECKLIST")
+    for obj_id, status in st.session_state.objectives.items():
+        label = obj_id.replace('obj_', '').replace('_', ' ').title()
+        if status:
+            st.write(f"✅ ~~{label}~~")
+        else:
+            st.write(f"◻️ {label}")
+    
+         
+
+     
+    st.subheader("👥 SQUAD DOSSIERS")
+    unit_view = st.radio("Access Unit Data:", ["SAM", "DAVE", "MIKE"], horizontal=True)
+    
+    # Mapping to your local .png files
+    if unit_view == "DAVE":
+        st.image("dave.png", use_container_width=True) 
+        st.warning("SPECIALTY: FORCE (90) | WEAKNESS: NEG (10)")
+    elif unit_view == "SAM":
+        st.image("sam.png", use_container_width=True)
+        st.success("SPECIALTY: NEG (95) | WEAKNESS: FORCE (25)")
+    else:
+        st.image("mike.png", use_container_width=True)
+        st.info("SPECIALTY: TECH (85) | WEAKNESS: FORCE (35)")
+
+    st.divider()
+    st.subheader("📊 EFFICIENCY: " + str(st.session_state.efficiency_score))
+
+
+# --- MAIN TERMINAL ---
+
+if st.session_state.get("mission_complete", False):
+    # --- MISSION SUCCESS UI ---
+    st.balloons()
+    st.markdown("<h1 style='text-align: center; color: #00FF00;'>🏁 MISSION COMPLETE!</h1>", unsafe_allow_html=True)
+    
+    col_a, col_b, col_c = st.columns([1, 2, 1])
+    with col_b:
+        # Success banner placeholder
+        st.metric("TOTAL MISSION TIME", f"{st.session_state.get('time_elapsed', 0)} MIN")
+        st.metric("VIABILITY REMAINING", f"{st.session_state.viability}%")
         
-    # Only show the input if the mission is active
-    if st.session_state.mission_started:
-        if prompt := st.chat_input("Issue Commands..."):
-            st.session_state.mission_time -= 1 
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            get_dm_response(prompt)
+        score = (st.session_state.viability * 10) - (st.session_state.get('time_elapsed', 0) * 5)
+        st.subheader(f"FINAL RATING: {max(0, score)} PTS")
+        
+        if st.button("REDEPLOY (NEW MISSION)"):
+            st.session_state.clear()
             st.rerun()
+else:
+    # --- ACTIVE MISSION UI ---
+    col1, col2 = st.columns([0.4, 0.6])
 
-elif authentication_status is False:
-    st.error("Invalid credentials.")
-elif authentication_status is None:
-    # Create the two columns
-    left_col, right_col = st.columns([2, 1], gap="large")
+    with col1:
+        st.markdown("### 📡 COMMS FEED")
+        chat_container = st.container(height=650, border=True)
+        with chat_container:
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    with st.chat_message("user"):
+                        st.write(msg["content"])
+                else:
+                    # It's the Assistant (The Squad)
+                    dialogue_dict = msg["content"]
+                    
+                    # If it's the dictionary format, render separate bubbles
+                    if isinstance(dialogue_dict, dict):
+                        for operative, text in dialogue_dict.items():
+                            # Map to your local images
+                            if operative == "AGENCY HQ":
+                                avatar_img = "agency_icon.png" # Create this file or rename an existing one
+                            else:
+                                avatar_img = f"{operative.lower()}_icon.png"
+                            
+                            with st.chat_message(operative.lower(), avatar=avatar_img):
+                                st.markdown(f"**{operative}**")
+                                st.write(text)
+                    else:
+                        # Fallback for old string messages or Recon reports
+                        with st.chat_message("assistant"):
+                            st.write(msg["content"])
 
-    with left_col:
-        # --- GAME TITLE SCREEN (LEFT) ---
-        st.title("GUNDOG: TACTICAL COMMAND")
-        st.subheader("Royal Marines Recruitment & Training Testbed")
+    with col2:
+        st.markdown("### 🗺️ TACTICAL OVERVIEW: CRISTOBAL")
         
-        # Add a high-res tactical background or logo
-        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title.jpg", use_container_width=True)
+        # Define assets
+        sam_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/sam-map1.png", icon_size=(45, 45))
+        dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
+        mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
         
-        st.markdown("""
-        ### Current Mission: OPERATION PANAMA
-        * **Objective**: Stop a local cartel getting their hands on aniti-aircraft munitions.
-        * **Status**: Active Deployment.
-        """)
-
-    with right_col:
-        st.header("Field Access")
-        tab_register, tab_login = st.tabs(["Enlist (New Operative)", "Resume (Existing)"])
+        m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
         
-        with tab_register:
-            # We tell the authenticator to use the email for the 'name' field too
-            if authenticator.register_user('Register with Email', preauthorization=False):
-                # Get the email of the most recently registered user
-                new_email = list(authenticator.credentials['usernames'].values())[-1]['email']
-                user_info = list(authenticator.credentials['usernames'].values())[-1]
-                
-                # Use the email as the Document ID (Firestore keys must be strings)
-                db.collection("users").document(new_email).set({
-                    "name": user_info['name'],
-                    "password": user_info['password'],
-                    "email": new_email,
-                    "created_at": firestore.SERVER_TIMESTAMP
-                })
-                st.success(f'Operative {new_email} registered. Switch to "Resume" tab.')
+        # Fog of War & Discovery Render
+        for loc_id, info in MISSION_DATA.items():
+            is_discovered = loc_id in st.session_state.discovered_locations
+            marker_color = "#00FF00" 
+            fill_opac = 0.2 if is_discovered else 0.02
+            
+            if is_discovered:
+                loc_img_url = get_image_url(info["image"])
+                popup_html = f'<div style="width:200px;background:#000;padding:10px;border:1px solid #0f0;"><h4 style="color:#0f0;">{info["name"]}</h4><img src="{loc_img_url}" width="100%"><p style="color:#0f0;font-size:10px;">{info["intel"]}</p></div>'
+            else:
+                popup_html = f'<div style="width:150px;background:#000;padding:10px;"><h4 style="color:#666;">{info["name"]}</h4><p style="color:#666;font-size:10px;">[RECON REQUIRED]</p></div>'
 
-        with tab_login:
-            # Note: The 'username' variable here will now hold the email address
-            name, authentication_status, email_id = authenticator.login("main")
+            folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
+            folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
 
-# At the very end of your script:
-if authentication_status and st.session_state.mission_started:
-    save_mission_state(username, "panama")
+        # Squad Tokens
+        tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
+        offsets = {"SAM": [0.00015, 0], "DAVE": [-0.0001, 0.00015], "MIKE": [-0.0001, -0.00015]}
+
+        for unit, icon in tokens.items():
+            current_loc = st.session_state.locations.get(unit, "Insertion Point")
+            # Robust matching POI by name
+            target_poi = next((info for info in MISSION_DATA.values() if info['name'].lower() == current_loc.lower()), MISSION_DATA.get('insertion_point'))
+
+            # NEW SAFETY CHECK: If no POI found, default to 'Insertion Point' or skip
+            if target_poi is None:
+                # Try to find 'Insertion Point' specifically, or just use the first available POI
+                target_poi = next((info for info in MISSION_DATA.values() if "insertion" in info['name'].lower()), list(MISSION_DATA.values())[0])
+            
+            final_coords = [target_poi["coords"][0] + offsets[unit][0], target_poi["coords"][1] + offsets[unit][1]]
+            folium.Marker(final_coords, icon=icon, tooltip=unit).add_to(m)
+        
+        st_folium(m, use_container_width=True, key="tactical_map_v3", returned_objects=[])
+
+    # --- MISSION STAGING & INITIAL BRIEFING ---
+if not st.session_state.messages:
+    # 1. Prepare the Agency Briefing
+    briefing_text = """
+    **TOP SECRET // EYES ONLY**\n
+    **FROM:** The Agency\n
+    **TO:** PMC Gundogs\n
+    **SITUATION:** Cartel have managed to acquire anti-aircraft weapons. Munitions arriving Puerto de Cristobal, Panama 0500 LOCAL TIME on board bulk carrier MV Panamax. Represents serious threat to military and civilian aviation. Intercept of these munitions ESSENTIAL.\n
+    **OBJECTIVE:** Infiltrate the harbor, identify the cargo container, and secure munitions for transport. Once extracted from port, hand over munitions to Agency personnel in town plaza, Colon. Cartel pickup scheduled for 0600, giving 1 hour window for mission execution.\n
+    **ADVISORIES:** Container ID unknown, but records available on ship manifest file.\n
+    **CONSTRAINTS:** Maintain 100% plausible deniability. Avoid local law enforcement. Munitions cannot be destroyed on site, due to high risk of collateral damage. \n\n
+    
+    *Awaiting PMC Gundogs Team Commander Confirmation...*
+    """
+    # 2. Add it to the feed as the 'AGENCY'
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": {"AGENCY HQ": briefing_text}
+    })
+    st.rerun()
+
+# --- THE START BUTTON LOGIC ---
+if not st.session_state.mission_started:
+    # This button appears in the main area until clicked
+    if st.button("🚀 INITIALIZE OPERATION: CONFIRM MISSION PARAMETERS", use_container_width=True):
+        with st.spinner("COMMUNICATION SECURED. SQUAD REPORTING IN..."):
+            # Trigger the actual AI squad check-in
+            response = get_dm_response("Team is at the insertion point. Report in.")
+            st.session_state.mission_started = True
+            st.rerun()
+    
+# Only show the input if the mission is active
+if st.session_state.mission_started:
+    if prompt := st.chat_input("Issue Commands..."):
+        st.session_state.mission_time -= 1 
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        get_dm_response(prompt)
+        st.rerun()
