@@ -28,28 +28,29 @@ credentials = service_account.Credentials.from_service_account_info(credentials_
 db = firestore.Client(credentials=credentials, project=credentials_info["project_id"])
 
 def get_user_credentials():
+    # Initialize the mandatory structure
+    creds = {"usernames": {}}
     try:
         users_ref = db.collection("users").stream()
-        creds = {"usernames": {}}
-        user_found = False
-        
         for doc in users_ref:
-            user_found = True
             data = doc.to_dict()
+            # Populate the dictionary using Document ID as key
             creds["usernames"][doc.id] = {
-                "name": data.get("name"),
-                "password": data.get("password"),
-                "email": data.get("email")
+                "name": data.get("name", "Operative"),
+                "password": data.get("password", ""),
+                "email": data.get("email", "")
             }
-        
-        # If no users exist in Firestore, provide a dummy entry to prevent TypeError
-        if not user_found:
-            creds["usernames"]["admin_placeholder"] = {
-                "name": "Admin",
-                "password": "placeholder_hash", 
-                "email": "admin@example.com"
-            }
-        return creds
+    except Exception as e:
+        st.error(f"Firestore Connection Failed: {e}")
+    
+    # SAFETY: If still empty, add a dummy entry to prevent the TypeError
+    if not creds["usernames"]:
+        creds["usernames"]["initial_setup"] = {
+            "name": "Admin",
+            "password": "none",
+            "email": "admin@gundogs.com"
+        }
+    return creds
     except Exception as e:
         # Return a valid structure even on failure
         return {"usernames": {"placeholder": {"name": "N/A", "password": "", "email": ""}}}
