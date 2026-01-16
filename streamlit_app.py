@@ -28,20 +28,21 @@ credentials = service_account.Credentials.from_service_account_info(credentials_
 db = firestore.Client(credentials=credentials, project=credentials_info["project_id"])
 
 def get_user_credentials():
-    """Fetches user data from Firestore for the login system."""
-    users_ref = db.collection("users").stream()
-    credentials = {"usernames": {}}
-    for doc in users_ref:
-        data = doc.to_dict()
-        credentials["usernames"][doc.id] = {
-            "name": data.get("name"),
-            "password": data.get("password"),
-            "email": data.get("email")
-        }
-    return credentials
-
-# Fetch the live list of operatives
-credentials = get_user_credentials()
+    try:
+        users_ref = db.collection("users").stream()
+        credentials = {"usernames": {}}
+        for doc in users_ref:
+            data = doc.to_dict()
+            credentials["usernames"][doc.id] = {
+                "name": data.get("name"),
+                "password": data.get("password"),
+                "email": data.get("email")
+            }
+        return credentials
+    except Exception as e:
+        # If the database or collection is empty/missing, return an empty dict
+        st.warning(f"Note: No user database found. {e}")
+        return {"usernames": {}}
 
 # Initialize the Authenticator object (Fixes 'not defined' error)
 authenticator = stauth.Authenticate(
