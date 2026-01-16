@@ -51,9 +51,7 @@ def get_user_credentials():
             "email": "admin@gundogs.com"
         }
     return creds
-    except Exception as e:
-        # Return a valid structure even on failure
-        return {"usernames": {"placeholder": {"name": "N/A", "password": "", "email": ""}}}
+    
 
 # Re-fetch and initialize
 credentials = get_user_credentials()
