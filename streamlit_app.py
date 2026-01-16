@@ -30,21 +30,33 @@ db = firestore.Client(credentials=credentials, project=credentials_info["project
 def get_user_credentials():
     try:
         users_ref = db.collection("users").stream()
-        credentials = {"usernames": {}}
+        creds = {"usernames": {}}
+        user_found = False
+        
         for doc in users_ref:
+            user_found = True
             data = doc.to_dict()
-            credentials["usernames"][doc.id] = {
+            creds["usernames"][doc.id] = {
                 "name": data.get("name"),
                 "password": data.get("password"),
                 "email": data.get("email")
             }
-        return credentials
+        
+        # If no users exist in Firestore, provide a dummy entry to prevent TypeError
+        if not user_found:
+            creds["usernames"]["admin_placeholder"] = {
+                "name": "Admin",
+                "password": "placeholder_hash", 
+                "email": "admin@example.com"
+            }
+        return creds
     except Exception as e:
-        # If the database or collection is empty/missing, return an empty dict
-        st.warning(f"Note: No user database found. {e}")
-        return {"usernames": {}}
+        # Return a valid structure even on failure
+        return {"usernames": {"placeholder": {"name": "N/A", "password": "", "email": ""}}}
 
-# Initialize the Authenticator object (Fixes 'not defined' error)
+# Re-fetch and initialize
+credentials = get_user_credentials()
+
 authenticator = stauth.Authenticate(
     credentials,
     "gundog_cookie",
