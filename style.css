@@ -155,3 +155,37 @@ div.stButton > button {
     border-radius: 0px;
     border: 2px solid #00AA00;
 }
+
+/* Target all Streamlit buttons and Authenticator widgets */
+div.stButton > button, div[data-testid="stForm"] button {
+    background-color: #111111 !important; /* Gundog Neon Green */
+    color: #00ff00 !important;            /* Pure Black Text for contrast */
+    border-radius: 4px !important;
+    border: none !important;
+    font-weight: bold !important;
+    transition: 0.3s ease;
+    box-shadow: 0px 0px 10px #00FF00;     /* Neon tactical glow */
+}
+
+/* Add a hover effect for a reactive UI feel */
+div.stButton > button:hover, div[data-testid="stForm"] button:hover {
+    background-color: #333333 !important; /* Gundog Neon Green */
+    box-shadow: 0px 0px 10px #44FF44;     /* Neon tactical glow */
+}
+
+/* Force all text inputs to have high-contrast black text */
+input {
+    color: #000000 !important;
+    font-weight: 500 !important;
+}
+
+/* Ensure the background remains stable to prevent flickering */
+.stTextInput > div > div > input {
+    background-color: #FFFFFF !important;
+}
+
+/* Optional: Add a neon green focus border to match the Gundogs aesthetic */
+input:focus {
+    border-color: #00FF00 !important;
+    box-shadow: 0 0 5px #00FF00 !important;
+}
