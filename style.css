@@ -201,3 +201,29 @@ input:focus {
 [data-testid="stForm"] {
     margin-bottom: 20px;
 }
+
+/* ==========================================
+   STABILIZATION PATCH: ANTI-JITTER
+   ========================================== */
+
+/* 1. ANCHOR THE LOGIN COLUMN: Force a rigid height to stop sub-pixel vibration */
+[data-testid="column"]:nth-child(2) {
+    min-height: 550px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* 2. TAB PANEL REINFORCEMENT: Override the dynamic height calculations */
+.stTabs [data-baseweb="tab-panel"] {
+    min-height: 450px !important;
+    max-height: 450px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* 3. CHROME/SAFARI RENDERING FIX: Prevent the 'shimmer' during script reruns */
+[data-testid="stAppViewContainer"] {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
