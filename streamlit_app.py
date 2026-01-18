@@ -160,33 +160,30 @@ def get_gcs_client():
         st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
         return None
 
-@st.cache_data(ttl=43200)  # 12-hour cache alignment
+@st.cache_data(ttl=43200)
 def get_image_url(filename):
     if not filename: return ""
     try:
-        # 1. Fetch ambient credentials from the Cloud Run identity
-        credentials, project = google.auth.default()
+        # 1. FORCE the identity to match your Firestore/GCP credentials
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_info(credentials_info)
         
-        # 2. Refresh to fetch a fresh token from the metadata server
-        credentials.refresh(Request())
+        # 2. Add the necessary 'signing' scope
+        scoped_creds = creds.with_scopes(['https://www.googleapis.com/auth/cloud-platform'])
         
-        # 3. Create the GCS client using this identity
-        client = storage.Client(credentials=credentials)
+        # 3. Create the client with the PMC identity
+        client = storage.Client(credentials=scoped_creds, project=credentials_info["project_id"])
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"cinematics/{filename}")
 
-        # 4. Generate the URL by passing the token explicitly
-        # This bypasses the need for a local .json private key file
+        # 4. Generate the 12-hour signed URL
         url = blob.generate_signed_url(
             version="v4",
             expiration=datetime.timedelta(hours=12),
-            method="GET",
-            service_account_email=credentials.service_account_email,
-            access_token=credentials.token
+            method="GET"
         )
         return url
     except Exception as e:
-        # Log error but don't crash the tactical feed
         st.error(f"Recon Uplink Lost: {e}")
         return ""
 
