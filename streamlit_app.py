@@ -396,7 +396,7 @@ if not st.session_state.get("authentication_status"):
 
     with left_col:
         
-        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title1.jpg", use_container_width=True)
+        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title2.jpg", use_container_width=True)
         
 
     with right_col:
