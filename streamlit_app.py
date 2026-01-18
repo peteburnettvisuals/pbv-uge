@@ -12,18 +12,18 @@ import time
 import os
 import json
 
-# --- ROBUST CREDENTIAL LOADER ---
+# --- TACTICAL SECRET LOADER ---
 try:
-    # 1. Try standard Streamlit Secrets (Local/Streamlit Cloud)
+    # First, try the standard Streamlit way (Local/Streamlit Cloud)
     credentials_info = st.secrets["gcp_service_account_firestore"]
-except Exception:
-    # 2. Fallback to Cloud Run Environment Variables
-    # We look for the exact name you set in the Google Console
+except (st.errors.StreamlitSecretNotFoundError, KeyError):
+    # Fallback: Look for the Cloud Run Environment Variable
+    # This must match the exact name in your Cloud Run Variables tab
     creds_json = os.environ.get("GCP_SERVICE_ACCOUNT_FIRESTORE")
     if creds_json:
         credentials_info = json.loads(creds_json)
     else:
-        st.error("Tactical Error: No GCP Credentials found in Secrets or Env Vars.")
+        st.error("CRITICAL: GCP Credentials not found in Secrets or Env Vars.")
         st.stop()
 
 def local_css(file_name):
@@ -37,7 +37,6 @@ st.set_page_config(layout="wide", page_title="Gundogs C2: Cristobal Mission")
 
 # 1. Load the credentials from st.secrets dictionary
 # Note: Streamlit handles the TOML section as a clean Python dictionary
-credentials_info = st.secrets["gcp_service_account_firestore"]
 gcp_service_creds = service_account.Credentials.from_service_account_info(credentials_info)
 
 # 2. Initialize the Firestore client
@@ -185,7 +184,9 @@ def get_dm_response(prompt):
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
     ]
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # NEW: Bulletproof API Key retrieval
+    api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash', 
                                   generation_config={"temperature": 0.3},
                                   safety_settings=safety_settings)
