@@ -9,6 +9,22 @@ from google.cloud import firestore
 from google.oauth2 import service_account
 import streamlit_authenticator as stauth
 import time
+import os
+import json
+
+# --- ROBUST CREDENTIAL LOADER ---
+try:
+    # 1. Try standard Streamlit Secrets (Local/Streamlit Cloud)
+    credentials_info = st.secrets["gcp_service_account_firestore"]
+except Exception:
+    # 2. Fallback to Cloud Run Environment Variables
+    # We look for the exact name you set in the Google Console
+    creds_json = os.environ.get("GCP_SERVICE_ACCOUNT_FIRESTORE")
+    if creds_json:
+        credentials_info = json.loads(creds_json)
+    else:
+        st.error("Tactical Error: No GCP Credentials found in Secrets or Env Vars.")
+        st.stop()
 
 def local_css(file_name):
     with open(file_name) as f:
