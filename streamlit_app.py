@@ -184,17 +184,20 @@ def get_dm_response(prompt):
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
     ]
-    # --- SAFE API KEY RETRIEVAL ---
-    # Do NOT call st.secrets.get() directly in Cloud Run
+    # --- STEALTH API KEY RETRIEVAL ---
     api_key = os.environ.get("GEMINI_API_KEY")
 
-    # If os.environ is empty, then try st.secrets ONLY as a fallback
     if not api_key:
+        # Use getattr to hide the call from the Streamlit parser
         try:
-            api_key = st.secrets["GEMINI_API_KEY"]
+            secrets_obj = getattr(st, "secrets", {})
+            api_key = secrets_obj.get("GEMINI_API_KEY")
         except Exception:
-            st.error("CRITICAL: GEMINI_API_KEY not found in Env Vars or Secrets.")
-            st.stop()
+            pass
+
+    if not api_key:
+        st.error("CRITICAL: GEMINI_API_KEY not found in Env Vars or Secrets.")
+        st.stop()
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash', 
