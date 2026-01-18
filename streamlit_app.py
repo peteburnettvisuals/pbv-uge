@@ -160,23 +160,23 @@ def get_gcs_client():
         st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
         return None
 
-@st.cache_data(ttl=43200)
+@st.cache_data(ttl=43200)  # 12-hour cache alignment
 def get_image_url(filename):
     if not filename: return ""
     try:
-        # 1. Load the ambient credentials from the Cloud Run environment
+        # 1. Fetch ambient credentials from the Cloud Run identity
         credentials, project = google.auth.default()
         
-        # 2. Refresh to fetch a fresh access token from the metadata server
+        # 2. Refresh to fetch a fresh token from the metadata server
         credentials.refresh(Request())
         
-        # 3. Create the client using these credentials
+        # 3. Create the GCS client using this identity
         client = storage.Client(credentials=credentials)
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"cinematics/{filename}")
 
-        # 4. Generate the URL by passing the email and token explicitly
-        # This triggers the IAM SignBlob API instead of looking for a local key file.
+        # 4. Generate the URL by passing the token explicitly
+        # This bypasses the need for a local .json private key file
         url = blob.generate_signed_url(
             version="v4",
             expiration=datetime.timedelta(hours=12),
@@ -186,6 +186,7 @@ def get_image_url(filename):
         )
         return url
     except Exception as e:
+        # Log error but don't crash the tactical feed
         st.error(f"Recon Uplink Lost: {e}")
         return ""
 
