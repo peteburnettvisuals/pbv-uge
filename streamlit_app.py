@@ -7,6 +7,7 @@ import folium
 from streamlit_folium import st_folium
 from google.cloud import firestore
 from google.oauth2 import service_account
+from google.auth.transport.requests import Request
 import streamlit_authenticator as stauth
 import time
 import os
@@ -157,21 +158,31 @@ def get_gcs_client():
         st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
         return None
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=43200)
 def get_image_url(filename):
     if not filename: return ""
     try:
-        # Use the already initialized global GCS client
-        client = get_gcs_client()
-        if not client: return ""
+        # Get credentials from the attached Cloud Run service account
+        credentials, project = google.auth.default()
+        if credentials.requires_scopes:
+            credentials = credentials.with_scopes(['https://www.googleapis.com/auth/cloud-platform'])
         
-        blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
+        # Refresh to get a valid access token
+        credentials.refresh(Request())
         
-        # Signed URLs allow the browser to fetch private images from your bucket
-        return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
+        client = storage.Client(credentials=credentials)
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(f"cinematics/{filename}")
+
+        # Sign using the service account email and token creator role
+        url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(hours=12), # Set to 12 hours
+        # ... rest of parameters ...
+        )
+        return url
     except Exception as e:
-        # Silently fail for the UI, but log the error for debugging
-        print(f"DEBUG: GCS Signed URL failure: {e}")
+        st.error(f"Recon Uplink Lost: {e}")
         return ""
 
 def parse_operative_dialogue(text):
