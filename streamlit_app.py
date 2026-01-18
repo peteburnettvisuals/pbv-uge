@@ -160,34 +160,10 @@ def get_gcs_client():
         st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
         return None
 
-@st.cache_data(ttl=43200)
 def get_image_url(filename):
     if not filename: return ""
-    try:
-        # 1. Use the EXACT credentials we validated for Firestore
-        from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_info(
-            credentials_info,
-            scopes=['https://www.googleapis.com/auth/cloud-platform']
-        )
-        
-        # 2. Create the storage client using these EXPLICIT credentials
-        client = storage.Client(credentials=creds, project=credentials_info["project_id"])
-        bucket = client.bucket(BUCKET_NAME)
-        blob = bucket.blob(f"cinematics/{filename}")
-
-        # 3. Generate the URL
-        # By using credentials that contain a private key (from your JSON), 
-        # it doesn't need to call the external IAM signBlob API.
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=datetime.timedelta(hours=12),
-            method="GET"
-        )
-        return url
-    except Exception as e:
-        st.error(f"Recon Uplink Lost: {e}")
-        return ""
+    # Direct public uplink path - bypasses IAM SignBlob entirely
+    return f"https://storage.googleapis.com/{BUCKET_NAME}/cinematics/{filename}"
 
 def parse_operative_dialogue(text):
     """Splits raw AI response and cleans up Markdown/Quotes."""
