@@ -164,19 +164,19 @@ def get_gcs_client():
 def get_image_url(filename):
     if not filename: return ""
     try:
-        # 1. FORCE the identity to match your Firestore/GCP credentials
+        # 1. Manually build the credentials from the validated top-level dict
         from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_info(credentials_info)
+        creds = service_account.Credentials.from_service_account_info(
+            credentials_info,
+            scopes=['https://www.googleapis.com/auth/cloud-platform']
+        )
         
-        # 2. Add the necessary 'signing' scope
-        scoped_creds = creds.with_scopes(['https://www.googleapis.com/auth/cloud-platform'])
-        
-        # 3. Create the client with the PMC identity
-        client = storage.Client(credentials=scoped_creds, project=credentials_info["project_id"])
+        # 2. Explicitly pass these credentials to the storage client
+        client = storage.Client(credentials=creds, project=credentials_info["project_id"])
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"cinematics/{filename}")
 
-        # 4. Generate the 12-hour signed URL
+        # 3. Generate the V4 Signed URL
         url = blob.generate_signed_url(
             version="v4",
             expiration=datetime.timedelta(hours=12),
