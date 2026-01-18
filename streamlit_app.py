@@ -7,6 +7,7 @@ import folium
 from streamlit_folium import st_folium
 from google.cloud import firestore
 from google.oauth2 import service_account
+import google.auth
 from google.auth.transport.requests import Request
 import streamlit_authenticator as stauth
 import time
