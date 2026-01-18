@@ -397,6 +397,21 @@ if not st.session_state.get("authentication_status"):
     with left_col:
         
         st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title2.jpg", use_container_width=True)
+
+        # --- MISSION BRIEFING OVERLAY ---
+        st.markdown("""
+        <div style="background-color: rgba(0, 255, 65, 0.05); border-left: 3px solid #00FF41; padding: 15px; margin-top: 10px;">
+            <h4 style="color: #00FF41; margin-top: 0;">SITUATION REPORT: THE GUNDOGS C2</h4>
+            <p style="font-size: 0.9rem; color: #a2fcb9; line-height: 1.4;">
+                Welcome to the <b>Gundogs Command & Control Simulator</b>. You are the commander, directing elite PMC operatives through high-stakes asymmetrical theaters. This is not a game of reflexes, but of <b>strategic multiplexing</b>—balancing unit viability, objective efficiency, and tactical initiative.
+            </p>
+            <hr style="border-top: 1px solid rgba(0, 255, 65, 0.2);">
+            <h5 style="color: #FF8C00; margin-bottom: 5px;">CURRENT THEATER: THE PANAMA CAPER</h5>
+            <p style="font-size: 0.85rem; color: #FF8C00; opacity: 0.9; font-style: italic;">
+                "A cartel arms shipment is docking at Puerto de Cristobal in Panama. 60 minutes until the cartel arrives. Infiltrate. Identify. Secure. If you fail, the Agency denies your existence."
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
 
     with right_col:
