@@ -142,11 +142,20 @@ BUCKET_NAME = "uge-repository-cu32"
 
 @st.cache_resource
 def get_gcs_client():
-    from google.oauth2 import service_account
     from google.cloud import storage
-    creds_info = st.secrets["gcp_service_account"]
-    credentials = service_account.Credentials.from_service_account_info(creds_info)
-    return storage.Client(credentials=credentials, project=creds_info["project_id"])
+    
+    # Use the 'credentials_info' we already initialized at the top
+    # to avoid triggering the st.secrets parser again
+    try:
+        # We reuse the same credentials_info dictionary for the bucket
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        return storage.Client(
+            credentials=credentials, 
+            project=credentials_info["project_id"]
+        )
+    except Exception as e:
+        st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
+        return None
 
 @st.cache_data(ttl=3600) # Cache for 1 hour to match the signed URL expiration
 def get_image_url(filename):
