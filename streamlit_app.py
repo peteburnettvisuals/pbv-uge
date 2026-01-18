@@ -157,14 +157,22 @@ def get_gcs_client():
         st.error(f"📡 Tactical Uplink Error (Bucket): {e}")
         return None
 
-@st.cache_data(ttl=3600) # Cache for 1 hour to match the signed URL expiration
+@st.cache_data(ttl=3600)
 def get_image_url(filename):
     if not filename: return ""
     try:
+        # Use the already initialized global GCS client
         client = get_gcs_client()
+        if not client: return ""
+        
         blob = client.bucket(BUCKET_NAME).blob(f"cinematics/{filename}")
+        
+        # Signed URLs allow the browser to fetch private images from your bucket
         return blob.generate_signed_url(expiration=datetime.timedelta(minutes=60))
-    except: return ""
+    except Exception as e:
+        # Silently fail for the UI, but log the error for debugging
+        print(f"DEBUG: GCS Signed URL failure: {e}")
+        return ""
 
 def parse_operative_dialogue(text):
     """Splits raw AI response and cleans up Markdown/Quotes."""
@@ -397,7 +405,7 @@ if not st.session_state.get("authentication_status"):
 
     with left_col:
         
-        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title.jpg", use_container_width=True)
+        st.image("https://peteburnettvisuals.com/wp-content/uploads/2026/01/panama-title1.jpg", use_container_width=True)
         
 
     with right_col:
