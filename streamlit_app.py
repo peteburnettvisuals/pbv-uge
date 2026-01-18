@@ -164,23 +164,22 @@ def get_gcs_client():
 def get_image_url(filename):
     if not filename: return ""
     try:
-        # Get credentials from the attached Cloud Run service account
-        credentials, project = google.auth.default()
-        if credentials.requires_scopes:
-            credentials = credentials.with_scopes(['https://www.googleapis.com/auth/cloud-platform'])
+        from google.cloud import storage
         
-        # Refresh to get a valid access token
-        credentials.refresh(Request())
+        # 1. Manually build the credentials from our validated top-level dict
+        # This provides the 'private key' required for signing
+        creds = service_account.Credentials.from_service_account_info(credentials_info)
         
-        client = storage.Client(credentials=credentials)
+        # 2. Explicitly pass these credentials to the storage client
+        client = storage.Client(credentials=creds, project=credentials_info["project_id"])
         bucket = client.bucket(BUCKET_NAME)
         blob = bucket.blob(f"cinematics/{filename}")
 
-        # Sign using the service account email and token creator role
+        # 3. Generate the 12-hour signed URL
         url = blob.generate_signed_url(
-        version="v4",
-        expiration=datetime.timedelta(hours=12), # Set to 12 hours
-        # ... rest of parameters ...
+            version="v4",
+            expiration=datetime.timedelta(hours=12),
+            method="GET"
         )
         return url
     except Exception as e:
