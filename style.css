@@ -190,15 +190,19 @@ input:focus {
     box-shadow: 0 0 5px #00FF00 !important;
 }
 
-/* Apply this to your style.css to tint the Esri Satellite imagery */
-.leaflet-tile-pane {
-    filter: brightness(0.5) contrast(1.2) sepia(100%) hue-rotate(80deg) saturate(1.8);
-    /* brightness(0.5): Dims the desert sun for night ops
-       hue-rotate(80deg): Shifts the colors into the Gundog Green spectrum
-    */
+/* ==========================================
+   TACTICAL SATELLITE TINT (FORCE OVERRIDE)
+   ========================================== */
+
+/* Target the specific leaflet tile container for ESRI imagery */
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-tile-container img {
+    filter: brightness(0.4) contrast(1.3) sepia(100%) hue-rotate(85deg) saturate(2) !important;
 }
 
-/* Keep markers and tokens at full brightness so they stand out */
-.leaflet-marker-pane, .leaflet-overlay-pane {
+/* IMPORTANT: This keeps your squad markers and POIs at full color/brightness */
+.leaflet-marker-pane img, 
+.leaflet-marker-icon,
+.leaflet-overlay-pane svg {
     filter: none !important;
 }
