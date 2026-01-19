@@ -713,9 +713,9 @@ if st.session_state.get("authentication_status"):
             dave_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/dave-map1.png", icon_size=(45, 45))
             mike_token = folium.CustomIcon("https://peteburnettvisuals.com/wp-content/uploads/2026/01/mike-map1.png", icon_size=(45, 45))
             
-            m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles="CartoDB dark_matter")
+            m = folium.Map(location=[9.3525, -79.9100], zoom_start=15, tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr='Esri', name='Satellite')
             
-            # Fog of War & Discovery Render
+            # Fog of War & Discovery Renderer
             for loc_id, info in MISSION_DATA.items():
                 is_discovered = loc_id in st.session_state.discovered_locations
                 marker_color = "#00FF00" 

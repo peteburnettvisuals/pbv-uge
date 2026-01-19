@@ -189,3 +189,16 @@ input:focus {
     border-color: #00FF00 !important;
     box-shadow: 0 0 5px #00FF00 !important;
 }
+
+/* Apply this to your style.css to tint the Esri Satellite imagery */
+.leaflet-tile-pane {
+    filter: brightness(0.5) contrast(1.2) sepia(100%) hue-rotate(80deg) saturate(1.8);
+    /* brightness(0.5): Dims the desert sun for night ops
+       hue-rotate(80deg): Shifts the colors into the Gundog Green spectrum
+    */
+}
+
+/* Keep markers and tokens at full brightness so they stand out */
+.leaflet-marker-pane, .leaflet-overlay-pane {
+    filter: none !important;
+}
