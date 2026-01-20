@@ -191,18 +191,23 @@ input:focus {
 }
 
 /* ==========================================
-   TACTICAL SATELLITE TINT (FORCE OVERRIDE)
+   LEGIBILITY OVERRIDE: TACTICAL LABELS
    ========================================== */
 
-/* Target the specific leaflet tile container for ESRI imagery */
-.leaflet-container .leaflet-tile-pane img,
-.leaflet-tile-container img {
-    filter: brightness(0.4) contrast(1.3) sepia(100%) hue-rotate(85deg) saturate(2) !important;
+/* Target the text labels on the map pins */
+.leaflet-tooltip, .leaflet-div-icon div {
+    background-color: rgba(0, 0, 0, 0.8) !important; /* Solid dark background */
+    color: #00FF41 !important;                      /* Gundog Green text */
+    border: 1px solid #00FF41 !important;           /* Neon border for definition */
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+    font-weight: bold !important;
+    font-family: 'Courier New', monospace !important;
+    text-shadow: none !important;                   /* Clearer text without glow */
+    white-space: nowrap;
 }
 
-/* IMPORTANT: This keeps your squad markers and POIs at full color/brightness */
-.leaflet-marker-pane img, 
-.leaflet-marker-icon,
-.leaflet-overlay-pane svg {
-    filter: none !important;
+/* Ensure the pins (circles) pop against the satellite detail */
+.leaflet-marker-icon {
+    filter: drop-shadow(0 0 5px #000);
 }
