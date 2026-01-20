@@ -190,24 +190,3 @@ input:focus {
     box-shadow: 0 0 5px #00FF00 !important;
 }
 
-/* ==========================================
-   LEGIBILITY OVERRIDE: TACTICAL LABELS
-   ========================================== */
-
-/* Target the text labels on the map pins */
-.leaflet-tooltip, .leaflet-div-icon div {
-    background-color: rgba(0, 0, 0, 0.8) !important; /* Solid dark background */
-    color: #00FF41 !important;                      /* Gundog Green text */
-    border: 1px solid #00FF41 !important;           /* Neon border for definition */
-    border-radius: 4px !important;
-    padding: 2px 6px !important;
-    font-weight: bold !important;
-    font-family: 'Courier New', monospace !important;
-    text-shadow: none !important;                   /* Clearer text without glow */
-    white-space: nowrap;
-}
-
-/* Ensure the pins (circles) pop against the satellite detail */
-.leaflet-marker-icon {
-    filter: drop-shadow(0 0 5px #000);
-}

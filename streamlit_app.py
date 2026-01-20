@@ -728,7 +728,31 @@ if st.session_state.get("authentication_status"):
                     popup_html = f'<div style="width:150px;background:#000;padding:10px;"><h4 style="color:#666;">{info["name"]}</h4><p style="color:#666;font-size:10px;">[RECON REQUIRED]</p></div>'
 
                 folium.Circle(location=info["coords"], radius=45, color=marker_color, fill=True, fill_opacity=fill_opac).add_to(m)
-                folium.Marker(location=info["coords"], icon=folium.DivIcon(html=f'<div style="font-family:monospace;font-size:8pt;color:{marker_color};text-shadow:1px 1px #000;">{info["name"].upper()}</div>'), popup=folium.Popup(popup_html, max_width=250)).add_to(m)
+                # Updated Marker with High-Contrast Tactical Label
+                folium.Marker(
+                    location=info["coords"], 
+                    icon=folium.DivIcon(
+                        html=f"""
+                        <div style="
+                            font-family: 'Courier New', monospace;
+                            font-size: 9pt;
+                            font-weight: bold;
+                            color: {marker_color};
+                            background-color: rgba(0, 0, 0, 0.7); 
+                            border: 1px solid {marker_color};
+                            border-radius: 3px;
+                            padding: 2px 4px;
+                            white-space: nowrap;
+                            text-shadow: none;
+                            display: inline-block;
+                            transform: translate(-50%, -150%);
+                        ">
+                            {info["name"].upper()}
+                        </div>
+                        """
+                    ), 
+                    popup=folium.Popup(popup_html, max_width=250)
+                ).add_to(m)
 
             # Squad Tokens
             tokens = {"SAM": sam_token, "DAVE": dave_token, "MIKE": mike_token}
